@@ -279,7 +279,7 @@ parser.add_argument(
     "-o",
     "--outdir",
     default=None,
-    help="Optional output directory for generated drexm_input_*.dat (default: script directory)",
+    help="Optional output directory for generated outputs (default: script directory)",
 )
 args = parser.parse_args()
 
@@ -292,6 +292,13 @@ pvd_file = os.path.abspath(pvd_file)
 # extract the model ID from the path (parent directory of pvd file)
 MODEL_ID = os.path.basename(os.path.dirname(pvd_file))
 logger.info(f"Using MODEL_ID: {MODEL_ID}")
+
+# Set default output directory and ensure it exists
+if outdir is None:
+    outdir = os.path.dirname(__file__) or os.getcwd()
+outdir = os.path.abspath(outdir)
+os.makedirs(outdir, exist_ok=True)
+logger.info(f"Output directory: {outdir}")
 
 # MODEL_ID = "a03.02.28_Wn1.0e-20_Wc1.0e-21_Ws2.5e-22_wet0010_a03.38-EFns-short-tipN050_C-00_S-50-wkz75-nosplit-Gw0.00"
 
@@ -480,15 +487,11 @@ x, y, z = (
 logger.info(f"Converting {len(x)} points from cartesian to spherical coordinates")
 r, lon, colat = cartesian_to_spherical(x, y, z)
 
-# Ensure output directory exists
-os.makedirs("out", exist_ok=True)
-logger.debug("Ensured output directory exists: out/")
-
 # Replace mesh coordinates with (lon, depth, colat)
 sph_mesh = mesh.copy()
 sph_mesh.points = np.column_stack([lon, colat, r])
 try:
-    sph_path = "out/mesh_spherical.vtu"
+    sph_path = os.path.join(outdir, "mesh_spherical.vtu")
     sph_mesh.save(sph_path, binary=True)
     logger.info(f"Saved spherical mesh to {sph_path} (bounds={sph_mesh.bounds})")
 except Exception:
@@ -514,7 +517,7 @@ grid.spacing = (
 try:
     t0 = time.time()
     resampled = grid.sample(sph_mesh)
-    res_path = "out/resampled.vtk"
+    res_path = os.path.join(outdir, "resampled.vtk")
     resampled.save(res_path, binary=True)
     logger.info(f"Resampled grid saved to {res_path} ({time.time() - t0:.1f}s)")
     logger.info(f"Resampled dims: {resampled.dimensions}")
@@ -526,17 +529,14 @@ try:
     grid_block = generate_grid_blocks(
         resampled.bounds, nx=nx, ny=ny, nz=nz, n_long=200, n_rad=300, n_colat=500
     )
-    ts = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
-    out_dir = outdir or os.path.dirname(__file__) or os.getcwd()
-    os.makedirs(out_dir, exist_ok=True)
 
-    drexm_output_path = os.path.join(out_dir, f"drexm_input_{ts}.dat")
+    drexm_output_path = os.path.join(outdir, f"drexm_input.dat")
     write_drexm_with_grid(drexm_output_path, grid_block)
 
-    stack_output_path = os.path.join(out_dir, f"stack_input_{ts}.dat")
+    stack_output_path = os.path.join(outdir, f"stack_input.dat")
     write_stack_input(stack_output_path, resampled.bounds)
 
-    viztomo_output_path = os.path.join(out_dir, f"viztomo_input_{ts}.dat")
+    viztomo_output_path = os.path.join(outdir, f"viztomo_input.dat")
     write_viztomo_input(viztomo_output_path, resampled.bounds, nx, ny, nz)
 except Exception:
     logger.exception("Failed to generate or inject grid block into drexm_input.dat")
@@ -586,7 +586,7 @@ logger.debug(
 # WRITE HDF5 FILE FOR DREX
 # ============================================================
 
-fname = "out/vtp0001.h5"
+fname = os.path.join(outdir, "vtp0001.h5")
 if os.path.isfile(fname):
     logger.info(f"Removing existing file {fname}")
     os.remove(fname)
