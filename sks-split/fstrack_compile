@@ -1,0 +1,47 @@
+#!/bin/bash
+
+# COMPILES FROM CWD
+
+module load hdf5/1.14.5%oneapi@2025.0.0
+
+SKSSPLIT=/quobyte/billengrp/Software/ECOMAN/ECOMAN2.0-seismology.SKS-SPLIT
+CWD=$(pwd)
+
+if [[ -d $SKSSPLIT ]]; then
+    cd $SKSSPLIT
+else
+    exit 1
+fi
+
+# del fstrack/ if it exists
+if [[ -d fstrack ]]; then
+    rm -rf fstrack
+fi
+
+# untar tarball
+tar -zxvf fstrack.tar.gz
+
+# cp the correct makefiles over
+cp $CWD/Makefile_single_layer fstrack/single_layer/Makefile
+cp $CWD/Makefile_multi_layer fstrack/multi_layer/Makefile
+
+# make
+cd $SKSSPLIT/fstrack/single_layer
+make clean && make
+
+cd $SKSSPLIT/fstrack/multi_layer
+make clean && make
+
+# make sure awk files are findable on path
+FSTRACK_AWK="/quobyte/billengrp/Software/ECOMAN/ECOMAN2.0-seismology.SKS-SPLIT/fstrack"
+if [[ -d $FSTRACK_AWK ]] && command -v gawk >/dev/null; then
+    if [[ -n $AWKPATH ]]; then
+        AWKPATH=$(gawk 'BEGIN {print ENVIRON["AWKPATH"]}')
+        export AWKPATH
+    fi
+    if [[ ":$AWKPATH:" != *:"$FSTRACK_AWK":* ]]; then
+        AWKPATH+=":$FSTRACK_AWK"
+    fi
+fi
+
+cp $FSTRACK_AWK/bin/$(uname -m)/anicake $SKSSPLITcp $FSTRACK_AWK/meanallcol.awk $SKSSPLIT
