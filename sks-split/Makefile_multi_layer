@@ -1,0 +1,157 @@
+#
+# makefile for anisotropic reflectivity
+#
+# from Vera Schulte - Pelkum in March 2005
+#
+# Makefile updated by Nathalie Redick (07/2025)
+#
+
+F77 = h5pfc
+F90 = h5pfc
+CC  = mpicc
+AR  = ar
+
+ARCH ?= x86_64
+
+ODIR = objects/$(ARCH)
+BDIR = ../bin/$(ARCH)
+
+# general objects
+OBJS = $(ODIR)/aniplanesubs.o \
+       $(ODIR)/anieigen.o \
+       $(ODIR)/cinvert.o \
+       $(ODIR)/utilcmat.o \
+       $(ODIR)/utilcijkl.o \
+       $(ODIR)/gethex.o \
+       $(ODIR)/sgeev.o \
+       $(ODIR)/sortpol.o \
+       $(ODIR)/utilmat.o \
+       ../single_layer/$(ODIR)/vera_util.o \
+       ../single_layer/$(ODIR)/vera_jacobi.o
+
+DBG_OBJS = $(OBJS:.o=.dbg.o)
+
+# FFT objects
+FFT_OBJS = $(ODIR)/ffa.o \
+           $(ODIR)/ffaffssubs.o \
+           $(ODIR)/ffs.o \
+           $(ODIR)/getspec.o \
+           $(ODIR)/getts.o
+DBG_FFT_OBJS = $(FFT_OBJS:.o=.dbg.o)
+
+# anicake objects
+ANICAKE_LIB_OBJS = $(ODIR)/filter.o \
+                   $(ODIR)/spectoseis.o \
+                   $(ODIR)/vera_split.o \
+                   $(ODIR)/vera_xcorr.o \
+                   $(ODIR)/ah_cross_conv_spectoseis.o
+DBG_ANICAKE_LIB_OBJS = $(ANICAKE_LIB_OBJS:.o=.dbg.o)
+
+CINCLUDES = -I../menke_splitting/ -I/usr/include/tirpc
+
+HDR_FILES =
+
+all: dirs libs progs
+
+libs: $(ODIR)/libref_fft.a $(ODIR)/libref_general.a $(ODIR)/libanicake.a \
+      $(ODIR)/libref_fft.dbg.a $(ODIR)/libref_general.dbg.a $(ODIR)/libanicake.dbg.a
+
+progs: anicake anicake.dbg spectoseis spectoseis_stream skssplit_xcorr skssplit_xcorr_stream
+
+clean:
+	rm -rf $(ODIR)/*.o $(ODIR)/*.dbg.o $(ODIR)/*.a
+
+dirs:
+	mkdir -p objects ../bin $(ODIR) $(BDIR) ../single_layer/$(ODIR)
+
+#
+# Libraries
+#
+
+$(ODIR)/libref_general.a: $(OBJS)
+	$(AR) rv $@ $^
+
+$(ODIR)/libanicake.a: $(ANICAKE_LIB_OBJS)
+	$(AR) rv $@ $^
+
+$(ODIR)/libref_fft.a: $(FFT_OBJS)
+	$(AR) rv $@ $^
+
+$(ODIR)/libref_general.dbg.a: $(DBG_OBJS)
+	$(AR) rv $@ $^
+
+$(ODIR)/libanicake.dbg.a: $(DBG_ANICAKE_LIB_OBJS)
+	$(AR) rv $@ $^
+
+$(ODIR)/libref_fft.dbg.a: $(DBG_FFT_OBJS)
+	$(AR) rv $@ $^
+
+#
+# Programs
+#
+
+skssplit_xcorr: $(ODIR)/skssplit_xcorr.o $(ODIR)/vera_xcorr.o $(ODIR)/vera_split.o
+	$(F90) $^ -o $(BDIR)/skssplit_xcorr $(F90LDFLAGS)
+
+skssplit_xcorr_stream: $(ODIR)/skssplit_xcorr.stream.o $(ODIR)/vera_xcorr.o $(ODIR)/vera_split.o
+	$(F90) $^ -o $(BDIR)/skssplit_xcorr_stream $(F90LDFLAGS)
+
+anicake: $(ODIR)/anicake.o $(ODIR)/libref_general.a $(ODIR)/libanicake.a $(ODIR)/libref_fft.a
+	$(F90) $(ODIR)/anicake.o -o $(BDIR)/anicake -L$(ODIR) -lref_general -lanicake -lref_fft $(F90LDFLAGS)
+
+anicake.dbg: $(ODIR)/anicake.dbg.o $(ODIR)/libref_general.dbg.a $(ODIR)/libanicake.dbg.a $(ODIR)/libref_fft.dbg.a
+	$(F90) $(ODIR)/anicake.dbg.o -o $(BDIR)/anicake.dbg -L$(ODIR) -lref_general.dbg -lanicake.dbg -lref_fft.dbg $(F90LDFLAGS)
+
+spectoseis: $(ODIR)/spectoseis_driver.o $(ODIR)/filter.o $(ODIR)/libref_fft.a $(ODIR)/spectoseis.o
+	$(F90) $(ODIR)/spectoseis.o $(ODIR)/spectoseis_driver.o $(ODIR)/filter.o -o $(BDIR)/spectoseis -L$(ODIR) -lref_fft $(F90LDFLAGS)
+
+spectoseis_stream: $(ODIR)/spectoseis_driver.stream.o $(ODIR)/filter.o $(ODIR)/libref_fft.a $(ODIR)/spectoseis.o
+	$(F90) $(ODIR)/spectoseis_driver.stream.o $(ODIR)/spectoseis.o $(ODIR)/filter.o -o $(BDIR)/spectoseis_stream -L$(ODIR) -lref_fft $(F90LDFLAGS)
+
+#
+# Object compilation rules
+#
+
+$(ODIR)/spectoseis_driver.o: spectoseis_driver.f90 $(HDR_FILES)
+	$(F90) $(F90FLAGS) $(INCLUDES) $(F_EXT_SOURCE_FLAG) -c spectoseis_driver.f90 -DUSE_COMMAND_LINE_AND_FILES -o $@
+
+$(ODIR)/spectoseis_driver.stream.o: spectoseis_driver.f90 $(HDR_FILES)
+	$(F90) $(F90FLAGS) $(INCLUDES) $(F_EXT_SOURCE_FLAG) -c spectoseis_driver.f90 -o $@
+
+$(ODIR)/spectoseis.o: spectoseis.f90 $(HDR_FILES)
+	$(F90) $(F90FLAGS) $(INCLUDES) $(F_EXT_SOURCE_FLAG) -c $< -o $@
+
+$(ODIR)/spectoseis.dbg.o: spectoseis.f90 $(HDR_FILES)
+	$(F90) $(F90FLAGS_DEBUG) -DDEBUG $(INCLUDES) $(F_EXT_SOURCE_FLAG) -c $< -o $@
+
+$(ODIR)/skssplit_xcorr.o: skssplit_xcorr_driver.F $(HDR_FILES)
+	$(F77) $(FFLAGS) $(INCLUDES) $(F_EXT_SOURCE_FLAG) -c skssplit_xcorr_driver.F -DUSE_COMMAND_LINE_AND_FILES -o $@
+
+$(ODIR)/skssplit_xcorr.stream.o: skssplit_xcorr_driver.F $(HDR_FILES)
+	$(F77) $(FFLAGS) $(INCLUDES) $(F_EXT_SOURCE_FLAG) -c skssplit_xcorr_driver.F -o $@
+
+# Generic pattern rules for objects
+
+$(ODIR)/%.o: %.f $(HDR_FILES)
+	$(F77) $(F77FLAGS) $(FTRN_ZERO_INIT_FLAG) $(F_EXT_SOURCE_FLAG) $(INCLUDES) -c $< -o $@
+
+$(ODIR)/%.o: %.F $(HDR_FILES)
+	$(F77) $(FFLAGS) $(FTRN_ZERO_INIT_FLAG) $(F_EXT_SOURCE_FLAG) $(INCLUDES) -c $< -o $@
+
+$(ODIR)/%.o: %.c $(HDR_FILES)
+	$(CC) $(CFLAGS) $(CINCLUDES) -c $< -o $@
+
+$(ODIR)/%.dbg.o: %.c $(HDR_FILES)
+	$(CC) -DDEBUG $(CFLAGS_DEBUG) $(CINCLUDES) -c $< -o $@
+
+$(ODIR)/%.o: %.f90 $(HDR_FILES)
+	$(F90) $(F90FLAGS) $(FTRN_ZERO_INIT_FLAG) $(F_EXT_SOURCE_FLAG) $(INCLUDES) -c $< -o $@
+
+$(ODIR)/%.dbg.o: %.f $(HDR_FILES)
+	$(F77) -g -DDEBUG $(FFLAGS_DEBUG) $(F_EXT_SOURCE_FLAG) $(INCLUDES) $(FTRN_ZERO_INIT_FLAG) -c $< -o $@
+
+$(ODIR)/%.dbg.o: %.F $(HDR_FILES)
+	$(F77) -g -DDEBUG $(FFLAGS_DEBUG) $(F_EXT_SOURCE_FLAG) $(INCLUDES) $(FTRN_ZERO_INIT_FLAG) -c $< -o $@
+
+$(ODIR)/%.dbg.o: %.f90 $(HDR_FILES)
+	$(F90) -g -DDEBUG $(F90FLAGS_DEBUG) $(F_EXT_SOURCE_FLAG) $(INCLUDES) $(FTRN_ZERO_INIT_FLAG) -c $< -o $@

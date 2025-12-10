@@ -1,0 +1,43 @@
+#!/bin/bash
+
+# updated 07/2025 from bash_compile_billen for HIVE
+
+module unload openmpi
+module load hdf5/1.14.5%oneapi@2025.0.0
+module load openmpi/5.0.5%oneapi@2025.0.0
+
+if [[ -f "*.mod" ]]; then
+    rm *.mod
+fi
+
+if [[ -f *genmod* ]]; then
+    rm *genmod*
+fi
+
+# h5pfc -O3 -qopenmp -o drex_m     \
+#-gen-interfaces -g -traceback -CB -ftrapuv
+h5pfc -O0 -qopenmp -o drex_m     \
+    precision.f90        \
+    DistComm.f90         \
+    DistGrid.F90         \
+    module.f90           \
+    D-REX_M.f90  	 \
+    read_input_file.f90  \
+    initgrid.f90         \
+    loadsave.f90         \
+    eulerian2D.f90 	 \
+    eulerian3D.f90 	 \
+    strainLPO.f90        \
+    tensor_calc.f90      \
+    ../DATABASES/elastic_database.f90 \
+    ../shared_funct/readfunct.f90 \
+    ../shared_funct/rotmat.f90 \
+    ../shared_funct/inverse.f90 \
+    ../shared_funct/dsyevc3.f \
+    ../shared_funct/dsyevh3.f \
+    ../shared_funct/dsyevq3.f \
+    ../shared_funct/dsytrd3.f
+
+if [[ $? -eq 0 ]]; then
+    echo "Successfully compiled $(basename $PWD)"
+fi
