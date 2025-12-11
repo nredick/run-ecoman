@@ -16,7 +16,10 @@ export NUMBA_NUM_THREADS=$SLURM_CPUS_PER_TASK
 export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
 export PYTHONUNBUFFERED=1
 
-MODEL=${MODEL:-28.37}
+set -euo pipefail
+
+# Check for positional argument $1, and if it's empty, use the default 28.37
+MODEL=${1:-28.37}
 OUTDIR=${OUTDIR:-./out_$SLURM_JOB_ID}
 
 # convert MODEL to path PVD_FILE
@@ -36,4 +39,4 @@ fi
 module load conda
 mamba activate $HOME/.conda/envs/ecoman
 
-python3 aspect2ecoman.py -f "$PVD_FILE" # -o "$OUTDIR"
+python3 aspect2ecoman.py -f "$PVD_FILE" -o "$OUTDIR"
