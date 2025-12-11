@@ -165,8 +165,8 @@ DREXM_TEMPLATE = """# MPI proc distribution along axis
 """
 
 # Static STACK template with placeholders for spatial bounds
-STACK_TEMPLATE = """ 5    !! nsx1 : number of seismic stations equally spaced along axis 1 direction
- 5    !! nsx3 : number of seismic stations equally spaced along axis 3 direction
+STACK_TEMPLATE = """ 10    !! nsx1 : number of seismic stations equally spaced along axis 1 direction
+ 10    !! nsx3 : number of seismic stations equally spaced along axis 3 direction
 
  0    !! depthaxis = define whether depth axis is positive downward (0) or upward (1)
 
@@ -199,18 +199,18 @@ VIZTOMO_TEMPLATE = """# A) INPUT AND OUTPUT DIRECTORIES/FILES
 
 # B) VISUALIZE PROPERTIES OF LAGRANGIAN AGGREGATES
 
-0  # Lagrangian
+1  # Lagrangian
 
-0.0  # ln_fse_min:: minimum threshold of ln(fse_max/fse_min) to visualize the following properties
+0.5  # ln_fse_min:: minimum threshold of ln(fse_max/fse_min) to visualize the following properties
 
-0  # uppermantlemod (when active displays only upper mantle aggregates with ln_fse >= ln_fse_min)
-0  # rocktypemod
-0  # fse3Dmod (when active, allows for plotting the 3D FSE)
-0  # fseminmod
-0  # fsemaxmod
-0  # TIaxismod
-0  # vpmaxmod
-0  # dvsmaxmod
+1  # uppermantlemod (when active displays only upper mantle aggregates with ln_fse >= ln_fse_min)
+1  # rocktypemod
+1  # fse3Dmod (when active, allows for plotting the 3D FSE)
+1  # fseminmod
+1  # fsemaxmod
+1  # TIaxismod
+1  # vpmaxmod
+1  # dvsmaxmod
 
 # C) SPO: EXTRINSIC ELASTIC ANISOTROPY
 
@@ -281,6 +281,13 @@ parser.add_argument(
     default=None,
     help="Optional output directory for generated outputs (default: script directory)",
 )
+parser.add_argument(
+    "--no-crop-660",
+    dest="crop_660",
+    action="store_false",
+    default=True,
+    help="Disable cropping at 660 km depth (default: crop at 660 km)",
+)
 args = parser.parse_args()
 
 pvd_file = args.file
@@ -307,7 +314,8 @@ def fmt_d(val: float) -> str:
     return f"{val:.6e}".replace("e", "d")
 
 
-def generate_grid_blocks(bounds, nx=50, ny=50, nz=50, n_long=20, n_rad=30, n_colat=50):
+# n_long, n_rad, n_colat are target number of Lagrangian aggregates along each axis
+def generate_grid_blocks(bounds, nx=50, ny=50, nz=50, n_long=10, n_rad=15, n_colat=25):
     """Return text block for Eulerian and Lagrangian grids using bounds and target counts."""
     lon_min, lon_max, colat_min, colat_max, r_min, r_max = bounds
 
@@ -329,6 +337,12 @@ def generate_grid_blocks(bounds, nx=50, ny=50, nz=50, n_long=20, n_rad=30, n_col
     mx1stp = max(mx1stp, eps)
     mx2stp = max(mx2stp, eps)
     mx3stp = max(mx3stp, eps)
+
+    # Log the resolution in km
+    logger.info(f"Lagrangian grid resolution:")
+    logger.info(f"  Longitude (mx1stp):  {mx1stp/1e3:.2f} km ({n_long} aggregates)")
+    logger.info(f"  Radial (mx2stp):     {mx2stp/1e3:.2f} km ({n_rad} aggregates)")
+    logger.info(f"  Colatitude (mx3stp): {mx3stp/1e3:.2f} km ({n_colat} aggregates)")
 
     grid_text = f"""# Axis 1 (X-cart or Long)
     {fmt_d(lon_min)} # x1min: (X,Phi)min
@@ -503,7 +517,57 @@ except Exception:
 # ============================================================
 
 xmin, xmax, ymin, ymax, zmin, zmax = sph_mesh.bounds
-nx = ny = nz = 125  # user-controlled
+
+# Crop the domain: remove 3 degrees from longitude and 1 degree from colatitude on each side
+lon_crop = 3.0  # degrees
+colat_crop = 1.0  # degrees
+
+xmin += lon_crop
+xmax -= lon_crop
+ymin += colat_crop
+ymax -= colat_crop
+
+logger.info(f"Cropped bounds: lon=[{xmin:.2f}, {xmax:.2f}], colat=[{ymin:.2f}, {ymax:.2f}], r=[{zmin:.0f}, {zmax:.0f}]")
+
+# Optionally crop at 660 km depth (only model upper mantle)
+if args.crop_660:
+    depth_660km = 6371e3 - 660e3  # radius at 660 km depth
+    if zmin < depth_660km:
+        logger.info(f"Cropping domain at 660 km depth (r={depth_660km:.0f} m)")
+        zmin = depth_660km
+else:
+    logger.info("Modeling full depth (660 km cropping disabled)")
+
+# Calculate grid dimensions for uniform sampling
+# Convert degrees to arc lengths in meters for spacing calculation
+Rmean = 0.5 * (zmin + zmax)
+dlam = (xmax - xmin) * math.pi / 180.0
+dth = (ymax - ymin) * math.pi / 180.0
+th_mean = 0.5 * (ymin + ymax) * math.pi / 180.0
+
+long_len = dlam * Rmean * math.sin(th_mean)  # longitude arc length in meters
+colat_len = dth * Rmean  # colatitude arc length in meters
+rad_len = zmax - zmin  # radial length in meters
+
+target_spacing = 2500.0  # target spacing in meters (~2 km)
+
+nx = max(2, int(round(long_len / target_spacing)))
+ny = max(2, int(round(colat_len / target_spacing)))
+nz = max(2, int(round(rad_len / target_spacing)))
+
+logger.info(f"Grid spacing: lon={long_len/nx/1e3:.2f} km, colat={colat_len/ny/1e3:.2f} km, radial={rad_len/nz/1e3:.2f} km")
+
+# Calculate Lagrangian aggregates to achieve ~5 aggregates per Eulerian point
+total_eulerian_points = nx * ny * nz
+target_aggregates = total_eulerian_points * 5
+# Distribute aggregates proportionally to grid dimensions
+n_long = int(round(nx * (target_aggregates / total_eulerian_points) ** (1/3)))
+n_rad = int(round(ny * (target_aggregates / total_eulerian_points) ** (1/3)))
+n_colat = int(round(nz * (target_aggregates / total_eulerian_points) ** (1/3)))
+
+logger.info(f"Eulerian grid: {nx} x {ny} x {nz} = {total_eulerian_points:,} points")
+logger.info(f"Lagrangian grid: {n_long} x {n_rad} x {n_colat} = {n_long*n_rad*n_colat:,} aggregates")
+logger.info(f"Ratio: {(n_long*n_rad*n_colat)/total_eulerian_points:.2f} aggregates per Eulerian point")
 
 grid = pv.ImageData()
 grid.dimensions = (nx, ny, nz)
@@ -527,7 +591,7 @@ except Exception:
 
 try:
     grid_block = generate_grid_blocks(
-        resampled.bounds, nx=nx, ny=ny, nz=nz, n_long=200, n_rad=300, n_colat=500
+        resampled.bounds, nx=nx, ny=ny, nz=nz, n_long=n_long, n_rad=n_rad, n_colat=n_colat
     )
 
     drexm_output_path = os.path.join(outdir, f"drexm_input.dat")
