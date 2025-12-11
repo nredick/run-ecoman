@@ -25,7 +25,7 @@ DREXM_TEMPLATE = """# MPI proc distribution along axis
 /quobyte/billengrp/nredick/csz-models/{MODEL_ID}/ecoman/drexm/
 
 # output_dir: path to output directory !!! Remember to put slash at the end
-/quobyte/billengrp/nredick/csz-models/{MODEL_ID}/ecoman/drexm/out/
+/quobyte/billengrp/nredick/csz-models/{MODEL_ID}/ecoman/drexm/
 
      1 # Tinit
      1 # Tstp
@@ -188,10 +188,8 @@ STACK_TEMPLATE = """ 10    !! nsx1 : number of seismic stations equally spaced a
 VIZTOMO_TEMPLATE = """# A) INPUT AND OUTPUT DIRECTORIES/FILES
 
 # cijkl_dir: path to directory where to read Cijkl* files !!! remember to put slash at the end
-/quobyte/billengrp/nredick/csz-models/a03.02.28_Wn1.0e-20_Wc1.0e-21_Ws2.5e-22_wet0010_a03.38-EFns-short-tipN050_C-00_S-50-wkz75-nosplit-Gw0.00/ecoman/drexm/out/
 
 # output_dir: path to directory where to save output files !!! remember to put slash at the end
-/quobyte/billengrp/nredick/csz-models/a03.02.28_Wn1.0e-20_Wc1.0e-21_Ws2.5e-22_wet0010_a03.38-EFns-short-tipN050_C-00_S-50-wkz75-nosplit-Gw0.00/ecoman/viztomo/out/
 
    1  # Tinit: initial number of the source Cijkl*.h5 files to be processed
    1  # Tstep: increment number of the source Cijkl*.h5 files to be processed
@@ -199,18 +197,18 @@ VIZTOMO_TEMPLATE = """# A) INPUT AND OUTPUT DIRECTORIES/FILES
 
 # B) VISUALIZE PROPERTIES OF LAGRANGIAN AGGREGATES
 
-1  # Lagrangian
+0  # Lagrangian
 
-0.5  # ln_fse_min:: minimum threshold of ln(fse_max/fse_min) to visualize the following properties
+0.0  # ln_fse_min:: minimum threshold of ln(fse_max/fse_min) to visualize the following properties
 
-1  # uppermantlemod (when active displays only upper mantle aggregates with ln_fse >= ln_fse_min)
-1  # rocktypemod
-1  # fse3Dmod (when active, allows for plotting the 3D FSE)
-1  # fseminmod
-1  # fsemaxmod
-1  # TIaxismod
-1  # vpmaxmod
-1  # dvsmaxmod
+0  # uppermantlemod (when active displays only upper mantle aggregates with ln_fse >= ln_fse_min)
+0  # rocktypemod
+0  # fse3Dmod (when active, allows for plotting the 3D FSE)
+0  # fseminmod
+0  # fsemaxmod
+0  # TIaxismod
+0  # vpmaxmod
+0  # dvsmaxmod
 
 # C) SPO: EXTRINSIC ELASTIC ANISOTROPY
 
@@ -279,7 +277,7 @@ parser.add_argument(
     "-o",
     "--outdir",
     default=None,
-    help="Optional output directory for generated outputs (default: script directory)",
+    help="Optional output directory for generated drexm_input_*.dat (default: script directory)",
 )
 parser.add_argument(
     "--no-crop-660",
@@ -307,15 +305,13 @@ outdir = os.path.abspath(outdir)
 os.makedirs(outdir, exist_ok=True)
 logger.info(f"Output directory: {outdir}")
 
-# MODEL_ID = "a03.02.28_Wn1.0e-20_Wc1.0e-21_Ws2.5e-22_wet0010_a03.38-EFns-short-tipN050_C-00_S-50-wkz75-nosplit-Gw0.00"
 
 def fmt_d(val: float) -> str:
     """Format a float in Fortran-style double precision (d-notation)."""
     return f"{val:.6e}".replace("e", "d")
 
-
 # n_long, n_rad, n_colat are target number of Lagrangian aggregates along each axis
-def generate_grid_blocks(bounds, nx=50, ny=50, nz=50, n_long=10, n_rad=15, n_colat=25):
+def generate_grid_blocks(bounds, nx=50, ny=50, nz=50, n_long=20, n_rad=30, n_colat=50):
     """Return text block for Eulerian and Lagrangian grids using bounds and target counts."""
     lon_min, lon_max, colat_min, colat_max, r_min, r_max = bounds
 
@@ -337,12 +333,6 @@ def generate_grid_blocks(bounds, nx=50, ny=50, nz=50, n_long=10, n_rad=15, n_col
     mx1stp = max(mx1stp, eps)
     mx2stp = max(mx2stp, eps)
     mx3stp = max(mx3stp, eps)
-
-    # Log the resolution in km
-    logger.info(f"Lagrangian grid resolution:")
-    logger.info(f"  Longitude (mx1stp):  {mx1stp/1e3:.2f} km ({n_long} aggregates)")
-    logger.info(f"  Radial (mx2stp):     {mx2stp/1e3:.2f} km ({n_rad} aggregates)")
-    logger.info(f"  Colatitude (mx3stp): {mx3stp/1e3:.2f} km ({n_colat} aggregates)")
 
     grid_text = f"""# Axis 1 (X-cart or Long)
     {fmt_d(lon_min)} # x1min: (X,Phi)min
@@ -501,89 +491,84 @@ x, y, z = (
 logger.info(f"Converting {len(x)} points from cartesian to spherical coordinates")
 r, lon, colat = cartesian_to_spherical(x, y, z)
 
-# Replace mesh coordinates with (lon, depth, colat)
+# Replace mesh coordinates with (lon, colat, r)
 sph_mesh = mesh.copy()
 sph_mesh.points = np.column_stack([lon, colat, r])
-try:
-    sph_path = os.path.join(outdir, "mesh_spherical.vtu")
-    sph_mesh.save(sph_path, binary=True)
-    logger.info(f"Saved spherical mesh to {sph_path} (bounds={sph_mesh.bounds})")
-except Exception:
-    logger.exception(f"Failed to save spherical mesh to {sph_path}")
-    raise
+# try:
+#     sph_path = os.path.join(outdir, "mesh.vtu")
+#     sph_mesh.save(sph_path, binary=True)
+#     logger.info(f"Saved spherical mesh to {sph_path} (bounds={sph_mesh.bounds})")
+# except Exception:
+#     logger.exception(f"Failed to save spherical mesh to {sph_path}")
+#     raise
 
 # ============================================================
 # BUILD GRID + RESAMPLE
 # ============================================================
 
-xmin, xmax, ymin, ymax, zmin, zmax = sph_mesh.bounds
+# xmin, xmax, ymin, ymax, zmin, zmax = sph_mesh.bounds
+lon_min, lon_max, colat_min, colat_max, r_min, r_max = sph_mesh.bounds
+nx = ny = nz = 150  # user-controlled
 
-# Crop the domain: remove 3 degrees from longitude and 1 degree from colatitude on each side
+# Crop the domain: trim 3 degrees longitude and 1 degree colatitude on each side
 lon_crop = 3.0  # degrees
 colat_crop = 1.0  # degrees
 
-xmin += lon_crop
-xmax -= lon_crop
-ymin += colat_crop
-ymax -= colat_crop
+# xmin += lon_crop
+# xmax -= lon_crop
+# ymin += colat_crop
+# ymax -= colat_crop
 
-logger.info(f"Cropped bounds: lon=[{xmin:.2f}, {xmax:.2f}], colat=[{ymin:.2f}, {ymax:.2f}], r=[{zmin:.0f}, {zmax:.0f}]")
+lon_min += lon_crop
+lon_max -= lon_crop
+colat_min += colat_crop
+colat_max -= colat_crop
 
+# logger.info(
+#     f"Cropped bounds: lon=[{xmin:.2f}, {xmax:.2f}], colat=[{ymin:.2f}, {ymax:.2f}], r=[{zmin:.0f}, {zmax:.0f}]"
+# )
+
+logger.info(
+    f"Cropped bounds: lon=[{lon_min:.2f}, {lon_max:.2f}], colat=[{colat_min:.2f}, {colat_max:.2f}], r=[{r_min:.0f}, {r_max:.0f}]"
+)
+
+# Crop the depth to 660 km if the mesh extends deeper
 # Optionally crop at 660 km depth (only model upper mantle)
 if args.crop_660:
     depth_660km = 6371e3 - 660e3  # radius at 660 km depth
-    if zmin < depth_660km:
+    if r_min < depth_660km:
         logger.info(f"Cropping domain at 660 km depth (r={depth_660km:.0f} m)")
-        zmin = depth_660km
+        r_min = depth_660km
 else:
     logger.info("Modeling full depth (660 km cropping disabled)")
 
-# Calculate grid dimensions for uniform sampling
-# Convert degrees to arc lengths in meters for spacing calculation
-Rmean = 0.5 * (zmin + zmax)
-dlam = (xmax - xmin) * math.pi / 180.0
-dth = (ymax - ymin) * math.pi / 180.0
-th_mean = 0.5 * (ymin + ymax) * math.pi / 180.0
-
-long_len = dlam * Rmean * math.sin(th_mean)  # longitude arc length in meters
-colat_len = dth * Rmean  # colatitude arc length in meters
-rad_len = zmax - zmin  # radial length in meters
-
-target_spacing = 2500.0  # target spacing in meters (~2 km)
-
-nx = max(2, int(round(long_len / target_spacing)))
-ny = max(2, int(round(colat_len / target_spacing)))
-nz = max(2, int(round(rad_len / target_spacing)))
-
-logger.info(f"Grid spacing: lon={long_len/nx/1e3:.2f} km, colat={colat_len/ny/1e3:.2f} km, radial={rad_len/nz/1e3:.2f} km")
-
-# Calculate Lagrangian aggregates to achieve ~5 aggregates per Eulerian point
-total_eulerian_points = nx * ny * nz
-target_aggregates = total_eulerian_points * 5
-# Distribute aggregates proportionally to grid dimensions
-n_long = int(round(nx * (target_aggregates / total_eulerian_points) ** (1/3)))
-n_rad = int(round(ny * (target_aggregates / total_eulerian_points) ** (1/3)))
-n_colat = int(round(nz * (target_aggregates / total_eulerian_points) ** (1/3)))
-
-logger.info(f"Eulerian grid: {nx} x {ny} x {nz} = {total_eulerian_points:,} points")
-logger.info(f"Lagrangian grid: {n_long} x {n_rad} x {n_colat} = {n_long*n_rad*n_colat:,} aggregates")
-logger.info(f"Ratio: {(n_long*n_rad*n_colat)/total_eulerian_points:.2f} aggregates per Eulerian point")
+# ===========================================================
+#  RESAMPLE SPHERICAL MESH ONTO UNIFORM GRID
+# ============================================================
 
 grid = pv.ImageData()
 grid.dimensions = (nx, ny, nz)
-grid.origin = (xmin, ymin, zmin)
+# grid.origin = (xmin, ymin, zmin)
+grid.origin = (lon_min, colat_min, r_min)
+
+# grid.spacing = (
+#     (xmax - xmin) / (nx - 1),
+#     (ymax - ymin) / (ny - 1),
+#     (zmax - zmin) / (nz - 1),
+# )
+
 grid.spacing = (
-    (xmax - xmin) / (nx - 1),
-    (ymax - ymin) / (ny - 1),
-    (zmax - zmin) / (nz - 1),
+    (lon_max - lon_min) / (nx - 1),
+    (colat_max - colat_min) / (ny - 1),
+    (r_max - r_min) / (nz - 1),
 )
 
 try:
     t0 = time.time()
     resampled = grid.sample(sph_mesh)
     res_path = os.path.join(outdir, "resampled.vtk")
-    resampled.save(res_path, binary=True)
-    logger.info(f"Resampled grid saved to {res_path} ({time.time() - t0:.1f}s)")
+    # resampled.save(res_path, binary=True)
+    # logger.info(f"Resampled grid saved to {res_path} ({time.time() - t0:.1f}s)")
     logger.info(f"Resampled dims: {resampled.dimensions}")
 except Exception:
     logger.exception("Failed to resample or save resampled grid")
@@ -591,7 +576,7 @@ except Exception:
 
 try:
     grid_block = generate_grid_blocks(
-        resampled.bounds, nx=nx, ny=ny, nz=nz, n_long=n_long, n_rad=n_rad, n_colat=n_colat
+        resampled.bounds, nx=nx, ny=ny, nz=nz, n_long=20, n_rad=30, n_colat=50
     )
 
     drexm_output_path = os.path.join(outdir, f"drexm_input.dat")
@@ -604,7 +589,10 @@ try:
     write_viztomo_input(viztomo_output_path, resampled.bounds, nx, ny, nz)
 except Exception:
     logger.exception("Failed to generate or inject grid block into drexm_input.dat")
-    raise  # ============================================================
+    raise  
+
+
+# ============================================================
 # REORDER VTK -> ECOMAN/DREX_M
 # ============================================================
 
@@ -651,9 +639,10 @@ logger.debug(
 # ============================================================
 
 fname = os.path.join(outdir, "vtp0001.h5")
-if os.path.isfile(fname):
-    logger.info(f"Removing existing file {fname}")
-    os.remove(fname)
+# fname = os.path.join(outdir, fname)
+# if os.path.isfile(fname):
+#     logger.info(f"Removing existing file {fname}")
+#     os.remove(fname)
 
 time_val = 0.0
 dt = 3.155760e12  # must be >0
