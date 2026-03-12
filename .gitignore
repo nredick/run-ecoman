@@ -2,6 +2,8 @@ __pycache__/
 out/
 out_*/
 
+**/OLD/
+
 *.dat
 *.out
 *.err
