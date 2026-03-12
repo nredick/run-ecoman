@@ -1,12 +1,12 @@
 #!/bin/bash
-#SBATCH --job-name=drexm_model_28.37
-#SBATCH --output=/quobyte/billengrp/nredick/csz-models/28.37/ecoman/drexm/out_%j/%x_%j.out
-#SBATCH --error=/quobyte/billengrp/nredick/csz-models/28.37/ecoman/drexm/out_%j/%x_%j.err
-#SBATCH --time=01:30:00
+#SBATCH --job-name=drexm_model_29.37
+#SBATCH --output=/quobyte/billengrp/nredick/csz-models/29.37/ecoman/drexm/out_%j/%x_%j.out
+#SBATCH --error=/quobyte/billengrp/nredick/csz-models/29.37/ecoman/drexm/out_%j/%x_%j.err
+#SBATCH --time=03:30:00
 #SBATCH --nodes=1
 #SBATCH --ntasks=125                          # must be equal to product of MPI proc distribution along axis from DAT file
-#SBATCH --partition=high
-#SBATCH --mem=256G                          # to use magali's nodes
+# SBATCH --partition=high
+#SBATCH --mem=512G                          # to use magali's nodes
 #SBATCH --constraint='zen|zen2|zen3'        # do not run or compile on zen4 nodes
 #SBATCH --account=billengrp
 #SBATCH --mail-type=end
@@ -14,7 +14,7 @@
 #SBATCH --chdir=/quobyte/billengrp/nredick/mysoftware/ECOMAN2.0-geodynamics/D-REX_M
 
 BASEDIR=/quobyte/billengrp/nredick/csz-models
-MODEL=28.37
+MODEL=29.37
 SJI=$1
 
 # if sji not set, fail 
@@ -56,16 +56,8 @@ fi
 
 # load necessary modules
 echo "Loading modules..."
-# module load hdf5/1.14.5%oneapi@2025.0.0
-# module load openmpi/5.0.5%oneapi@2025.0.0 # it will auto unload the other mpi version
-# module load cmake/3.28.1 gcc/13.2.0 pmix ucx     # added 2026.02.09 for compatibility with changes to openmpi
-
-# module unload openmpi
-module load oneapi/2025.0.0 hdf5/1.14.5%oneapi@2025.0.0
-
-
-# module load openmpi/5.0.5%oneapi@2025.0.0
-# module load pmix/5.0.3%oneapi@2025.0.0 ucx/1.17.0%oneapi@2025.0.0 intel-oneapi-mkl/2024.0.0%oneapi@2025.0.0 
+module load hdf5/1.14.5%oneapi@2025.0.0
+module load openmpi/5.0.5%oneapi@2025.0.0 # it will auto unload the other mpi version
 
 # update the input/output paths in the dat file
 echo "Updating dat file with correct paths..."
@@ -78,7 +70,3 @@ srun ./drex_m $OUT_DIR/drexm_input.dat
 
 # mv outputs to correct directory
 # mv $BASEDIR/$MODEL/out $OUT_DIR
-
-# cp this file to out dir for record keeping 
-current_path=$(realpath "$0")
-cp $current_path "$OUT_DIR/" 

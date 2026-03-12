@@ -2,12 +2,13 @@
 #SBATCH --job-name=aspect2ecoman
 #SBATCH --output=./out_%j/aspect2ecoman_%j.out
 #SBATCH --error=./out_%j/aspect2ecoman_%j.err
-#SBATCH --time=01:00:00                     # 1 hr max
+#SBATCH --time=06:00:00                     # 6 hr max
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=32
 #SBATCH --partition=high
 #SBATCH --mem=512G                          # to use magali's nodes
+#SBATCH --constraint='zen|zen2|zen3'        # do not run or compile on zen4 nodes
 #SBATCH --account=billengrp
 #SBATCH --mail-type=end
 #SBATCH --mail-user=nrredick@ucdavis.edu
@@ -40,3 +41,6 @@ module load conda
 mamba activate $HOME/.conda/envs/ecoman
 
 python3 aspect2ecoman.py -f "$PVD_FILE" -o "$OUTDIR"
+
+# cp the python file to the output directory for record-keeping
+cp aspect2ecoman.py "$OUTDIR"/aspect2ecoman.py
