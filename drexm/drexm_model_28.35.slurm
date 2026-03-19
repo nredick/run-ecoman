@@ -1,21 +1,24 @@
 #!/bin/bash
-#SBATCH --job-name=drexm_model_28.37
-#SBATCH --output=/quobyte/billengrp/nredick/csz-models/28.37/ecoman/drexm/out_%j/%x_%j.out
-#SBATCH --error=/quobyte/billengrp/nredick/csz-models/28.37/ecoman/drexm/out_%j/%x_%j.err
-#SBATCH --time=01:30:00
+#SBATCH --job-name=drexm_model_28.35
+
+#SBATCH --output=/quobyte/billengrp/nredick/csz-models/28.35/ecoman/drexm/out_%j/%x_%j.out
+#SBATCH --error=/quobyte/billengrp/nredick/csz-models/28.35/ecoman/drexm/out_%j/%x_%j.err
+#SBATCH --chdir=/quobyte/billengrp/nredick/mysoftware/ECOMAN2.0-geodynamics/D-REX_M
+
+#SBATCH --time=3:00:00
 #SBATCH --nodes=1
-#SBATCH --ntasks=125                          # must be equal to product of MPI proc distribution along axis from DAT file
+#SBATCH --ntasks=125 # must be equal to product of MPI proc distribution along axis from DAT file
+#SBATCH --mem=512G                          # to use magali's nodes
+#SBATCH --constraint='zen|zen2|zen3'        # do not run or compile on zen4 nodes
 #SBATCH --partition=high
 #SBATCH --hint=nomultithread
-#SBATCH --mem=256G                          # to use magali's nodes
-#SBATCH --constraint='zen|zen2|zen3'        # do not run or compile on zen4 nodes
+
 #SBATCH --account=billengrp
 #SBATCH --mail-type=end
 #SBATCH --mail-user=nrredick@ucdavis.edu
-#SBATCH --chdir=/quobyte/billengrp/nredick/mysoftware/ECOMAN2.0-geodynamics/D-REX_M
 
 BASEDIR=/quobyte/billengrp/nredick/csz-models
-MODEL=28.37
+MODEL=28.35
 SJI=$1
 
 # if sji not set, fail 

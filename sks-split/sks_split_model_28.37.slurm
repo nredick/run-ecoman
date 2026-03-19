@@ -2,35 +2,26 @@
 #SBATCH --job-name=sks_split_model_28.37
 #SBATCH --output=/quobyte/billengrp/nredick/csz-models/28.37/ecoman/sks-split/out_%j/%x_%j.out
 #SBATCH --error=/quobyte/billengrp/nredick/csz-models/28.37/ecoman/sks-split/out_%j/%x_%j.err
-#SBATCH --time=6:00:00
+
+#SBATCH --time=24:00:00
 #SBATCH --nodes=1
-#SBATCH --ntasks=1
-#SBATCH --cpus-per-task=64
+#SBATCH --ntasks=25 # cores 
+#SBATCH --mem=512G
+#SBATCH --constraint='zen|zen2|zen3'
 #SBATCH --partition=high
-#SBATCH --mem=512G                  # to use magali's nodes
-#SBATCH --constraint='zen|zen2|zen3'        # do not run or compile on zen4 nodes
+#SBATCH --hint=nomultithread
+
 #SBATCH --account=billengrp
 #SBATCH --mail-type=end
 #SBATCH --mail-user=nrredick@ucdavis.edu
-#SBATCH --chdir=/quobyte/billengrp/nredick/mysoftware/ECOMAN2.0-seismology.SKS-SPLIT
 
-# load necessary modules
-echo "[$(basename $0)] Loading modules..."
-module load oneapi/2025.0.0 hdf5/1.14.5%oneapi@2025.0.0
-# module load openmpi/5.0.5%oneapi@2025.0.0 # it will auto unload the other mpi version
-echo
+SRC_DIR=/quobyte/billengrp/nredick/mysoftware/ECOMAN2.0-seismology.SKS-SPLIT
 
-# set number of threads
-export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
-
-BASEDIR=/quobyte/billengrp/nredick/csz-models
-MODEL=28.37
 SJI=$1
 DJI=$2
 
-# if sji not set, fail 
 if [[ -z "$SJI" ]]; then
-    echo "Error: SJI (preprocessing job ID) not set. Please provide it as the first argument."
+    echo "Error: SJI (aspect2ecoman job ID) not set. Please provide it as the first argument."
     exit 1
 fi
 
@@ -39,39 +30,58 @@ if [[ -z "$DJI" ]]; then
     exit 1
 fi
 
-PP_DIR="/quobyte/billengrp/nredick/ecoman/preprocessing/out_$SJI" # where to copy dat and vtp from (preprocessing)
-MODEL_DIR="$BASEDIR/$MODEL" # model directory
-# OUTPUT_DIR="$MODEL_DIR/ecoman/sks-split" # model inputs (stack_input.dat) & slurm outputs
-OUTPUT_DIR="$MODEL_DIR/ecoman/sks-split/out_$SLURM_JOB_ID" # will contain sks-split outputs
+BASEDIR=/quobyte/billengrp/nredick/csz-models
+MODEL=28.37
+MODEL_DIR="$BASEDIR/$MODEL"
+PP_DIR="/quobyte/billengrp/nredick/ecoman/aspect2ecoman/out_$SJI"
+OUTPUT_DIR="$MODEL_DIR/ecoman/sks-split/out_$SLURM_JOB_ID"
+cijkl_dir="$MODEL_DIR/ecoman/drexm/out_$DJI"
 
 echo "[$(basename $0)] Running SKS-SPLIT on model \"$MODEL\""
-echo "[$(basename $0)] Model directory: $MODEL_DIR"
-# echo "[$(basename $0)] Working directory: $OUTPUT_DIR"
+echo "[$(basename $0)] Model directory:            $MODEL_DIR"
 echo "[$(basename $0)] Preprocessed data directory: $PP_DIR"
-echo "[$(basename $0)] Output directory: $OUTPUT_DIR"
+echo "[$(basename $0)] Cijkl directory:             $cijkl_dir"
+echo "[$(basename $0)] Output directory:            $OUTPUT_DIR"
 
-mkdir -p "$OUTPUT_DIR/" 2> /dev/null
-
-# copy stack_input.dat from PP_DIR to OUTPUT_DIR
-echo "[$(basename $0)] Copying stack_input.dat to $PP_DIR/stack_input.dat ..."
-cp "$PP_DIR/stack_input.dat" "$OUTPUT_DIR/"
-
-# check if the input file exists
-if ! [[ -f "$OUTPUT_DIR/stack_input.dat" ]]; then
-    echo "[$(basename $0)] SKS-SPLIT input file \"stack_input.dat\" does not exist or is improperly named."
+# validate inputs
+if ! [[ -f "$PP_DIR/stack_input.dat" ]]; then
+    echo "Error: stack_input.dat not found in $PP_DIR"
     exit 1
 fi
 
-############################# Define control parameters #############################
+if ! [[ -d "$cijkl_dir" ]]; then
+    echo "Error: cijkl_dir does not exist: $cijkl_dir"
+    exit 1
+fi
 
-cijkl_dir="$MODEL_DIR/ecoman/drexm/out_$DJI" # loc of Cijkl*.h5 file to be loaded
-echo "[$(basename $0)] Cijkl dir: $cijkl_dir"
+# load modules
+echo "[$(basename $0)] Loading modules..."
+module load oneapi/2025.0.0 hdf5/1.14.5%oneapi@2025.0.0
+echo
+
+# set up WORK_DIR
+WORK_DIR="/nfs/hive/scratch-mpi-io/$SLURM_JOB_ID"
+mkdir -p "$WORK_DIR" && cd "$WORK_DIR" || exit 1
+
+# cp instead of symlink to avoid stale file handling errors across diff filesystems
+cp -r "$SRC_DIR/." "$WORK_DIR/run/"
+
+# copy stack_input.dat and Cijkl data into WORK_DIR so all I/O stays local to scratch-mpi-io
+cp "$PP_DIR/stack_input.dat" "$WORK_DIR/"
+cp -r "$cijkl_dir" "$WORK_DIR/cijkl"
+LOCAL_CIJKL="$WORK_DIR/cijkl" # cijkl dir on the nfs (scratch)
+
+export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
+
+############################# Control parameters #############################
 
 timestep=0001                   # Cijkl*.h5 file number with 4 digits: e.g. 40 must be 0040
 
-mode=0                          # 0: all layers 1: remove lithosphere 2: remove deep layers
+mode=0                          # 0: all layers 
+                                # 1: remove lithosphere 
+                                # 2: remove deep layers
 
-split_dir=splitting	        # Define sub-directory of cijkl_dir where splitting parameters will be saved
+split_dir=splitting             # Define sub-directory of cijkl_dir where splitting parameters will be saved
 
 avg=0                           # 0: use true seismograms from reflectivity
                                 # 1: based on averaged tensors
@@ -85,44 +95,38 @@ idisp=25                        # way to compute splitting,
                                 # 25: Menke
 
 varpar=1                        # depth variable parameters
-
 density=3.353                   # reference density
-
 incidence=5                     # incidence angle for SKS
+bottom=660                      # Set depth of stack of layers in km
+lith_bot=0                      # calc splitting from layers below "bottom" everywhere if mode = 1
+execute=1                       # 0 = dry run (no outputs in splitting/), 1 = exec as normal 
 
-bottom=6371.5                      # Set depth of stack of layers in km
+##############################################################################
 
-lith_bot=0                    # calculate splitting due to layers below this depth everywhere if mode = 1
+pushd "$WORK_DIR/run"
 
-execute=1                       # set to zero for debugging
+# run stack_calc
+echo "[$(basename $0)] Running stack_calc..."
+srun --ntasks=1 stack_calc "$LOCAL_CIJKL" "$WORK_DIR/stack_input.dat" "$WORK_DIR" $timestep $mode
+echo "[$(basename $0)] stack_calc finished with exit code $?"
 
-############################# Define control parameters #############################
+# run split_calc
+echo "[$(basename $0)] Running split_calc..."
+mpirun -np $SLURM_NTASKS split_calc "$LOCAL_CIJKL" $timestep $mode $split_dir $avg $verbose $save_bascan $idisp $varpar $density $incidence $bottom $lith_bot $execute
+echo "[$(basename $0)] split_calc finished with exit code $?"
 
-# Generate stack of horizontal layers with different elastic tensors (scaled by density) beneath each seismic station
-srun ./stack_calc $cijkl_dir "$OUTPUT_DIR/stack_input.dat" $OUTPUT_DIR $timestep $mode
-# print completed this
-echo "[$(basename $0)] stack_calc finished running with exit code $?"
+popd
 
-wait
+# move outputs from scratch to OUTPUT_DIR
+echo "[$(basename $0)] Collecting outputs to $OUTPUT_DIR..."
+mkdir -p "$OUTPUT_DIR"
 
-# Compute splitting parameters averaged over back-azimuth
-srun ./split_calc $cijkl_dir $timestep $mode $split_dir $avg $verbose $save_bascan $idisp $varpar $density $incidence $bottom $lith_bot $execute
-echo "[$(basename $0)] split_calc finished running with exit code $?"
+mv "$LOCAL_CIJKL/splitting" "$LOCAL_CIJKL/seismic_stations" "$OUTPUT_DIR/"
+mv "$WORK_DIR/run/cpu*" "$OUTPUT_DIR/"
+mv "$WORK_DIR"/stack_input.dat "$OUTPUT_DIR/" 2>/dev/null
 
+# save a copy of this script alongside the outputs
+cp "$(realpath "$0")" "$OUTPUT_DIR/"
 
-# # todo clean up
-# rm -rf $OUTPUT_DIR/cpu*
-# # mv -f "$cijkl_dir/seismic_stations/" "$OUTPUT_DIR/"
-# mv -f cpu* "$OUTPUT_DIR/"
-# mv -f "$cijkl_dir/seismic_stations/" "$cijkl_dir/splitting/" 
-
-# "$cijkl_dir/stack_input.dat" "$OUTPUT_DIR/"
-# rm "$cijkl_dir/savstack"
-# rm "$cijkl_dir/stack_input.dat"
-
-mv "$cijkl_dir/splitting/" "$cijkl_dir/seismic_stations/" "$cijkl_dir/savstack" "$OUTPUT_DIR/" 
-rm "$cijkl_dir/stack_input.dat"
-
-# Get the full path of the current script
-current_path=$(realpath "$0")
-cp $current_path "$OUTPUT_DIR/" 
+echo "[$(basename $0)] Done. Executed as: sbatch sks_split_model_28.37.slurm $SJI $DJI"
+>&2 echo "$(pwd)"
