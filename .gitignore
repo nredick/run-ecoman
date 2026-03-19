@@ -9,3 +9,4 @@ current_run.md
 *.dat
 *.out
 *.err
+current_run*.md
