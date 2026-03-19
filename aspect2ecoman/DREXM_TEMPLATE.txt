@@ -1,15 +1,15 @@
 # MPI proc distribution along axis
-  5  # nproc1
-  5  # nproc2
-  5  # nproc3
+  3  # nproc1
+  3  # nproc2
+  3  # nproc3
 
 # A) INPUT AND OUTPUT DIRECTORIES/FILES
 
 # input_dir: path to input directory !!! Remember to put slash at the end
-/quobyte/billengrp/nredick/csz-models/{MODEL_ID}/ecoman/drexm/
+/home/nredick/nredick-pfs/workflow/results/{MODEL_ID}/step1/
 
 # output_dir: path to output directory !!! Remember to put slash at the end
-/quobyte/billengrp/nredick/csz-models/{MODEL_ID}/ecoman/drexm/
+/home/nredick/nredick-pfs/workflow/results/{MODEL_ID}/step1/
 
      1 # Tinit
      1 # Tstp
@@ -29,7 +29,7 @@
 {GRID_BLOCK}
 # C) LPO PARAMETERS
 
-        3 # size3: cubic root of total number of grains = size3^3
+        8 # size3: cubic root of total number of grains = size3^3
 
 # Upper mantle: Ol + Ens
 
@@ -143,6 +143,6 @@
         2 # fabrictransformmod ( 0 = no phase transformation; 1 = retain LPO after phase transformation ; 2 = reset LPO --> isotropic)
         2 # ptmod (0 = room P-T ; 1 = scale elastic properties f(P,T) but phase transitions at minx2/maxx2 depths; 2 = scale elastic properties f(P,T) and phase transitions at density crossovers))
         3 # eosmod (1 = Dunite; 2 = Hartzburgite; 3 = Pyrolite; 4 = Basalt ; 5 = Pyroxenite)
-100.0d0 # fractvoigt (fraction of Voigt average, from 0 % to 100 %. The rest is Reuss average)
+        100.0d0 # fractvoigt (fraction of Voigt average, from 0 % to 100 %. The rest is Reuss average)
 
 ##############################################################################

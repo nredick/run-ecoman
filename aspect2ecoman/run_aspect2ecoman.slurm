@@ -20,7 +20,7 @@ export PYTHONUNBUFFERED=1
 set -euo pipefail
 
 # Check for positional argument $1, and if it's empty, use the default 28.37
-MODEL=${1:-28.37}
+MODEL=${1:-28.37} # defines the model that will be preprocessed
 OUTDIR=${OUTDIR:-./out_$SLURM_JOB_ID}
 
 # convert MODEL to path PVD_FILE
@@ -40,7 +40,7 @@ fi
 module load conda
 mamba activate $HOME/.conda/envs/ecoman
 
-python3 aspect2ecoman.py -f "$PVD_FILE" -o "$OUTDIR"
+python3 aspect2ecoman.py -f "$PVD_FILE" -o "$OUTDIR" --resolution 60
 
 # cp the python file to the output directory for record-keeping
 cp aspect2ecoman.py "$OUTDIR"/aspect2ecoman.py

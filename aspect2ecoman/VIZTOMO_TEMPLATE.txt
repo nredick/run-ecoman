@@ -1,8 +1,10 @@
 # A) INPUT AND OUTPUT DIRECTORIES/FILES
 
 # cijkl_dir: path to directory where to read Cijkl* files !!! remember to put slash at the end
+/home/nredick/nredick-pfs/workflow/results/{MODEL_ID}/step2/
 
 # output_dir: path to directory where to save output files !!! remember to put slash at the end
+/home/nredick/nredick-pfs/workflow/results/{MODEL_ID}/step2/
 
    1  # Tinit: initial number of the source Cijkl*.h5 files to be processed
    1  # Tstep: increment number of the source Cijkl*.h5 files to be processed
@@ -10,18 +12,18 @@
 
 # B) VISUALIZE PROPERTIES OF LAGRANGIAN AGGREGATES
 
-0  # Lagrangian
+1  # Lagrangian
 
-0.0  # ln_fse_min:: minimum threshold of ln(fse_max/fse_min) to visualize the following properties
+0.5  # ln_fse_min:: minimum threshold of ln(fse_max/fse_min) to visualize the following properties
 
-0  # uppermantlemod (when active displays only upper mantle aggregates with ln_fse >= ln_fse_min)
-0  # rocktypemod
-0  # fse3Dmod (when active, allows for plotting the 3D FSE)
+1  # uppermantlemod (when active displays only upper mantle aggregates with ln_fse >= ln_fse_min)
+1  # rocktypemod
+1  # fse3Dmod (when active, allows for plotting the 3D FSE)
 0  # fseminmod
 0  # fsemaxmod
-0  # TIaxismod
-0  # vpmaxmod
-0  # dvsmaxmod
+1  # TIaxismod
+1  # vpmaxmod
+1  # dvsmaxmod
 
 # C) SPO: EXTRINSIC ELASTIC ANISOTROPY
 
@@ -32,8 +34,8 @@
 1  # Eulerian
 
 # Axis 1 (X-cart or Long)
-{LON_MIN}  # n1first: (X,Phi)min
-{LON_MAX}  # n1last : (X,Phi)max
+{AZI_MIN}  # n1first: (X,Phi)min
+{AZI_MAX}  # n1last : (X,Phi)max
 {NX1}  # nx11: number of nodes
 
 # Axis 2 (Y-cart or Radial)
@@ -46,8 +48,8 @@
 {COLAT_MAX}  # n3last : (Z,Colat)max
 {NX3}  # nx31: number of nodes
 
-      1  # vpvsmod:      Vp, Vs (1) isotropic or (2) along the cosx1,cosx2,cosx3 direction
-      1  # dvpvsmod:     dVp,dVs with respect to (1) horizontally averaged Vp,Vs or (2) vertical reference profile
+      1  # vpvsmod: Vp, Vs (1) isotropic or (2) along the cosx1,cosx2,cosx3 direction
+      1  # dvpvsmod: dVp,dVs with respect to (1) horizontally averaged Vp,Vs or (2) vertical reference profile
       0  # zoeppritzmod: Vp, Vs (1) isotropic or (2) along the cosx1,cosx2,cosx3 direction
 
     90d0 # cosx1: angle (in degrees) from axis 1 of incoming seismic wave when directionmod active
@@ -66,5 +68,5 @@
 
       0 # reflectmod (when active, reflect the aggregates with respect to the indicated axis; e.g., when  = 1, then reflect with respect to X axis; if eulerianmod is active, then need to double the domain)
       0  # replicateZmod (when active, replicate the 2D tomographic model along the Z (Colat) direction)
-      0  # specfem3Dmod (when active, print elastic tensors to txt file to be used as an input by Specfem3D)
+      1  # specfem3Dmod (when active, print elastic tensors to txt file to be used as an input by Specfem3D)
       1  # psimod (when active, print elastic tensors to txt file to be used as an input by PSI)

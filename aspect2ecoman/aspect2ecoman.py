@@ -54,27 +54,6 @@ parser.add_argument(
     help=f"Target resmapled model resolution in km (default: 10)",
 )
 
-# args for nx, ny, nz
-# n_default = 40
-# parser.add_argument(
-#     "--nx",
-#     type=int,
-#     default=n_default,
-#     help=f"Number of grid points along longitude (default: {n_default})",
-# )
-# parser.add_argument(
-#     "--ny",
-#     type=int,
-#     default=n_default,
-#     help=f"Number of grid points along radial (default: {n_default})",
-# )
-# parser.add_argument(
-#     "--nz",
-#     type=int,
-#     default=n_default,
-#     help=f"Number of grid points along colatitude (default: {n_default})",
-# )
-
 # ============================================================
 # LOAD/PARSE ARGS
 # ============================================================
@@ -83,6 +62,7 @@ args = parser.parse_args()
 
 pvd_file = args.file
 outdir = args.outdir
+resolution = args.resolution
 
 # get the full path of the pvd file
 pvd_file = os.path.abspath(pvd_file)
@@ -106,16 +86,21 @@ logger.info(f"Output directory: {outdir}")
 # LOAD *.DAT TEMPLATES
 # ============================================================
 
+script_dir = os.path.dirname(os.path.abspath(__file__))
+
+drexm_template_path = os.path.join(script_dir, "DREXM_TEMPLATE.txt")
 # Static DREX template with placeholder for the Eulerian/Lagrangian grid block
-with open("DREXM_TEMPLATE.txt", "r") as f:
+with open(drexm_template_path, "r") as f:
     DREXM_TEMPLATE = f.read()
 
+viztomo_template_path = os.path.join(script_dir, "VIZTOMO_TEMPLATE.txt")
 # Static VIZTOMO template with placeholders for Eulerian grid bounds
-with open("VIZTOMO_TEMPLATE.txt", "r") as f:
+with open(viztomo_template_path, "r") as f:
     VIZTOMO_TEMPLATE = f.read()
 
+stack_template_path = os.path.join(script_dir, "STACK_TEMPLATE.txt")
 # Static STACK template with placeholders for spatial bounds
-with open("STACK_TEMPLATE.txt", "r") as f:
+with open(stack_template_path, "r") as f:
     STACK_TEMPLATE = f.read()
 
 # ============================================================
@@ -129,15 +114,13 @@ def fmt_d(val: float) -> str:
 
 
 # n_long, n_rad, n_colat are target number of Lagrangian aggregates along each axis
-def generate_grid_blocks(
-    bounds, nx=50, ny=50, nz=50, n_long=200, n_rad=300, n_colat=500
-):
+def generate_grid_blocks(bounds, nx, ny, nz, n_long, n_rad, n_colat):
     """Return text block for Eulerian and Lagrangian grids using bounds and target counts."""
-    lon_min, lon_max, colat_min, colat_max, r_min, r_max = bounds
+    azi_min, azi_max, colat_min, colat_max, r_min, r_max = bounds
 
     # Compute arc lengths (meters)
     Rmean = 0.5 * (r_min + r_max)
-    dlam = (lon_max - lon_min) * math.pi / 180.0
+    dlam = (azi_max - azi_min) * math.pi / 180.0
     dth = (colat_max - colat_min) * math.pi / 180.0
     th_mean = 0.5 * (colat_min + colat_max) * math.pi / 180.0
 
@@ -155,8 +138,8 @@ def generate_grid_blocks(
     mx3stp = max(mx3stp, eps)
 
     grid_text = f"""# Axis 1 (X-cart or Long)
-    {fmt_d(lon_min)} # x1min: (X,Phi)min
-    {fmt_d(lon_max)} # x1max: (X,Phi)max
+    {fmt_d(azi_min)} # x1min: (X,Phi)min
+    {fmt_d(azi_max)} # x1max: (X,Phi)max
       {nx} # nx1: number of grid nodes
       0 # x1periodic: periodic boundary (no = 0, yes = else)
 
@@ -175,8 +158,8 @@ def generate_grid_blocks(
 # Lagrangian Grid
 
 # Axis 1 (X-cart or Long)
-    {fmt_d(lon_min)} # mx1min: (mX,mPhi)min
-    {fmt_d(lon_max)} # mx1max: (mX,mPhi)max
+    {fmt_d(azi_min)} # mx1min: (mX,mPhi)min
+    {fmt_d(azi_max)} # mx1max: (mX,mPhi)max
     {mx1stp:.0f}d0 # mx1stp: spacing of aggregates (in meters)
 
 # Axis 2 (Y-cart or Radial)
@@ -199,15 +182,15 @@ def write_drexm_with_grid(output_path: str, grid_block: str):
     body = body.replace("{MODEL_ID}", MODEL_ID)
     with open(output_path, "w", encoding="utf-8") as f:
         f.write(body)
-    logger.info(f"Wrote new grid-injected file: {output_path}")
+    logger.info(f"Wrote D-REX_M input file: {output_path}")
 
 
 def write_stack_input(output_path: str, bounds):
     """Render the embedded stack template with bounds and write it out."""
-    lon_min, lon_max, colat_min, colat_max, r_min, r_max = bounds
+    azi_min, azi_max, colat_min, colat_max, r_min, r_max = bounds
     body = (
-        STACK_TEMPLATE.replace("{LON_MIN}", f"  {fmt_d(lon_min)}")
-        .replace("{LON_MAX}", f"  {fmt_d(lon_max)}")
+        STACK_TEMPLATE.replace("{AZI_MIN}", f"  {fmt_d(azi_min)}")
+        .replace("{AZI_MAX}", f"  {fmt_d(azi_max)}")
         .replace("{R_MIN}", f"  {fmt_d(r_min)}")
         .replace("{R_MAX}", f"  {fmt_d(r_max)}")
         .replace("{COLAT_MIN}", f"   {fmt_d(colat_min)}")
@@ -215,15 +198,15 @@ def write_stack_input(output_path: str, bounds):
     )
     with open(output_path, "w", encoding="utf-8") as f:
         f.write(body)
-    logger.info(f"Wrote stack input file: {output_path}")
+    logger.info(f"Wrote STACK input file: {output_path}")
 
 
 def write_viztomo_input(output_path: str, bounds, nx, ny, nz):
     """Render the embedded viztomo template with bounds and grid dimensions."""
-    lon_min, lon_max, colat_min, colat_max, r_min, r_max = bounds
+    azi_min, azi_max, colat_min, colat_max, r_min, r_max = bounds
     body = (
-        VIZTOMO_TEMPLATE.replace("{LON_MIN}", f"  {fmt_d(lon_min)}")
-        .replace("{LON_MAX}", f"  {fmt_d(lon_max)}")
+        VIZTOMO_TEMPLATE.replace("{AZI_MIN}", f"  {fmt_d(azi_min)}")
+        .replace("{AZI_MAX}", f"  {fmt_d(azi_max)}")
         .replace("{R_MIN}", f"  {fmt_d(r_min)}")
         .replace("{R_MAX}", f"  {fmt_d(r_max)}")
         .replace("{COLAT_MIN}", f"  {fmt_d(colat_min)}")
@@ -231,10 +214,11 @@ def write_viztomo_input(output_path: str, bounds, nx, ny, nz):
         .replace("{NX1}", f"      {nx}")
         .replace("{NX2}", f"      {ny}")
         .replace("{NX3}", f"      {nz}")
+        .replace("{MODEL_ID}", MODEL_ID)
     )
     with open(output_path, "w", encoding="utf-8") as f:
         f.write(body)
-    logger.info(f"Wrote viztomo input file: {output_path}")
+    logger.info(f"Wrote VIZTOMO input file: {output_path}")
 
 
 # ============================================================
@@ -264,7 +248,6 @@ except Exception:
 # ============================================================
 # CONVERT MESH FROM CARTESIAN → SPHERICAL COORDS
 # ============================================================
-
 
 @njit(parallel=True, cache=True, fastmath=True)
 def cartesian_to_spherical(x, y, z):
@@ -308,7 +291,12 @@ x, y, z = (
     xyz[:, 2].astype(np.float32),
 )
 
-logger.info(f"Converting {len(x)} points from cartesian to spherical coordinates")
+xmin, xmax, ymin, ymax, zmin, zmax = mesh.bounds
+logger.info(
+    f"Original bounds in cartesian coordinates: lon=[{xmin:.2f}, {xmax:.2f}], lat=[{ymin:.2f}, {ymax:.2f}], depth=[{zmin:.0f}, {zmax:.0f}]"
+)
+
+logger.info(f"Converting {len(x):,} points from cartesian to spherical coordinates")
 r, lon, colat = cartesian_to_spherical(x, y, z)
 
 # Replace mesh coordinates with (lon, colat, r)
@@ -325,24 +313,29 @@ sph_mesh.points = np.column_stack([lon, colat, r])
 #     raise
 
 # ============================================================
-# CROP DOMAIN LONGITUDE, COLATITUDE, RADIUS (@660, OPTIONAL)
+# CROP DOMAIN AZIMUTH, COLATITUDE, RADIUS (@660, OPTIONAL)
 # ============================================================
 
 # xmin, xmax, ymin, ymax, zmin, zmax = sph_mesh.bounds
-lon_min, lon_max, colat_min, colat_max, r_min, r_max = sph_mesh.bounds
+azi_min, azi_max, colat_min, colat_max, r_min, r_max = sph_mesh.bounds
 
-# Crop the domain: trim 3 degrees longitude and 1 degree colatitude on each side
-# lon_crop = 3.0  # degrees
+logger.info(
+    f"Original bounds in spherical coordinates: azimuth=[{azi_min:.2f}, {azi_max:.2f}], colatitude=[{colat_min:.2f}, {colat_max:.2f}], radius=[{r_min:.0f}, {r_max:.0f}]"
+)
+
+# Crop the domain: trim 3 degrees azimuth and 1 degree colatitude on each side
+# azi_crop = 3.0  # degrees
 colat_crop = 1.0  # degrees
 
-# lon_min += lon_crop
-# lon_max -= lon_crop
+# azi_min += azi_crop
+# azi_max -= azi_crop
 
 # set absolute longitudinal min/max
 # this is specific to the model domain of menno's models, and its selection is based on where we expect to see interesting flow
 # no relevant flow near the thick continental lithosphere
-lon_min = -135
-lon_min = -112
+# add 360 because we are working in the range [0, 2π], not [-180°, 180°]
+azi_max = -135 + 360 
+azi_min = -112 + 360
 
 # set colatitidue values
 colat_min += colat_crop
@@ -352,7 +345,7 @@ colat_min = int(np.floor(colat_min))
 colat_max = int(np.floor(colat_max))
 
 logger.info(
-    f"Cropped bounds: lon=[{lon_min:.2f}, {lon_max:.2f}], colat=[{colat_min:.2f}, {colat_max:.2f}], r=[{r_min:.0f}, {r_max:.0f}]"
+    f"Cropped bounds: azimuth=[{azi_min:.2f}, {azi_max:.2f}], colatitude=[{colat_min:.2f}, {colat_max:.2f}], radius=[{r_min:.0f}, {r_max:.0f}]"
 )
 
 # Crop the depth to 660 km if the mesh extends deeper
@@ -369,25 +362,46 @@ else:
 # CALCULATE DOMAIN PARAMETERS TO ACHIEVE DESIRED RESOLUTION
 # ============================================================
 
-nx = abs(lon_max - lon_min) // resolution
-ny = abs(colat_max - colat_min) // resolution 
-nz = abs(r_max - r_min) // resolution
+# define earth's radius in km
+R = 6371
+
+# 1. convert angular spans to radians
+d_colat_rad = math.radians(abs(colat_max - colat_min))
+d_azi_rad = math.radians(abs(azi_max - azi_min))
+
+# 2. calculate ny
+# ny = total arc length / target resolution
+ny = int((R * d_colat_rad) // resolution)
+
+# 3. calculate nx (horizontal depends on theta)
+# use the max sin(theta) to ensure that there is no undersampling of the widest part
+# In colatitude, 90 is the equator, so use max of colat 
+max_theta_rad = math.radians(max(colat_min, colat_max))
+widest_arc_km = R * math.sin(max_theta_rad) * d_azi_rad
+
+# 4. calculate nx
+nx = int(widest_arc_km // resolution)
+
+# 5. calculate nz (Radial/Depth), radius is defined in m => need to convert
+nz = int(abs(r_max - r_min) // int(resolution*10**3))
 
 # log nx, ny, nz
-logger.info(f"Target grid dimensions: nx={nx}, ny={ny}, nz={nz} samples per dimension to achieve target resolution of {resolution} km")
+logger.info(
+    f"Target grid dimensions: nx={nx}, ny={ny}, nz={nz} samples per dimension to achieve target resolution of {resolution} km"
+)
 
 # ===========================================================
 #  RESAMPLE SPHERICAL MESH ONTO UNIFORM GRID
-# ============================================================
+# ===========================================================
 
 grid = pv.ImageData()
 grid.dimensions = (nx, ny, nz)
-grid.origin = (lon_min, colat_min, r_min)
+grid.origin = (azi_min, colat_min, r_min)
 
 grid.spacing = (
-    (lon_max - lon_min) / (nx - 1),
-    (colat_max - colat_min) / (ny - 1),
-    (r_max - r_min) / (nz - 1),
+    abs(azi_max - azi_min) / (nx - 1),
+    abs(colat_max - colat_min) / (ny - 1),
+    abs(r_max - r_min) / (nz - 1),
 )
 
 try:
@@ -401,14 +415,27 @@ except Exception:
     logger.exception("Failed to resample or save resampled grid")
     raise
 
-n_long = 75
-n_rad = 100
-n_colat = 150
+# ===========================================================
+# COMPUTE IDEAL # OF LAGRANGIAN AGGREGATES BASED ON RESOLUTION
+# ===========================================================
+
+# a minimum of 3-5 aggregates per cell gets rid of the errors in SKS-SPLIT related to no convergence and empty nodes
+
+target_aggregrates = 3  # number of target aggregates defined per grid cell
+
+# n_long, n_rad, n_colat are target number of Lagrangian aggregates along each axis
+n_long = nx * target_aggregrates
+n_rad = nz * target_aggregrates
+n_colat = ny * target_aggregrates
 
 # log values
 logger.info(
-    f"Setting Lagrangian aggregates: n_long={n_long}, n_rad={n_rad}, n_colat={n_colat}"
+    f"Configuring Lagrangian aggregates per dimension: n_long={n_long}, n_rad={n_rad}, n_colat={n_colat}"
 )
+
+# ===========================================================
+# GENERATE *.DAT OUTPUTS (THE CONFIG FILES FOR ECOMAN STEPS)
+# ===========================================================
 
 try:
     grid_block = generate_grid_blocks(
@@ -433,9 +460,8 @@ except Exception:
     logger.exception("Failed to generate or inject grid block into drexm_input.dat")
     raise
 
-
 # ============================================================
-# REORDER VTK -> ECOMAN/DREX_M
+# REORDER VTK DATA -> ECOMAN/DREX_M
 # ============================================================
 
 
@@ -443,7 +469,7 @@ except Exception:
 def reorder_to_drex(arr, nx, ny, nz):
     out = np.empty_like(arr)
 
-    for k in range(nz):  # depth (fastest in DREX)
+    for k in range(nz):  # depth (fastest in DREXM)
         for j in range(ny):  # colat
             for i in range(nx):  # lon
                 vtk_idx = i + nx * (j + ny * k)
@@ -453,6 +479,7 @@ def reorder_to_drex(arr, nx, ny, nz):
     return out
 
 
+# get absolute nx, ny, nz
 nx, ny, nz = resampled.dimensions
 N = nx * ny * nz
 
@@ -477,7 +504,7 @@ logger.debug(
 )
 
 # ============================================================
-# WRITE HDF5 FILE FOR DREX
+# WRITE HDF5 FILE (INPUT FOR DREXM)
 # ============================================================
 
 fname = os.path.join(outdir, "vtp0001.h5")
@@ -487,7 +514,7 @@ fname = os.path.join(outdir, "vtp0001.h5")
 #     os.remove(fname)
 
 time_val = 0.0
-dt = 3.155760e12  # must be >0
+dt = 3.155760e12  # must be >0; 3.155760e12 = 1 Ma
 
 try:
     with h5py.File(fname, "w") as f:
@@ -503,5 +530,3 @@ try:
 except Exception:
     logger.exception(f"Failed to write HDF5 file {fname}")
     raise
-
-logger.info("~fin~")
