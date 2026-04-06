@@ -1,88 +1,100 @@
 #!/bin/bash
-#SBATCH --job-name=drexm_model_28.35
+#SBATCH --job-name=drexm_28.35_15km
 
 #SBATCH --output=/quobyte/billengrp/nredick/csz-models/28.35/ecoman/drexm/out_%j/%x_%j.out
 #SBATCH --error=/quobyte/billengrp/nredick/csz-models/28.35/ecoman/drexm/out_%j/%x_%j.err
-#SBATCH --chdir=/quobyte/billengrp/nredick/mysoftware/ECOMAN2.0-geodynamics/D-REX_M
+# SBATCH --chdir=/quobyte/billengrp/nredick/mysoftware/ECOMAN2.0-geodynamics/D-REX_M
 
-#SBATCH --time=3:00:00
-#SBATCH --nodes=1
-#SBATCH --ntasks=125 # must be equal to product of MPI proc distribution along axis from DAT file
-#SBATCH --mem=512G                          # to use magali's nodes
+#SBATCH --time=12:00:00
+#SBATCH --nodes=2
+#SBATCH --ntasks=64 # must == product of MPI proc distribution along axis from DAT file (4x2x8)
+#SBATCH --mem=512G                          
 #SBATCH --constraint='zen|zen2|zen3'        # do not run or compile on zen4 nodes
 #SBATCH --partition=high
 #SBATCH --hint=nomultithread
 
 #SBATCH --account=billengrp
-#SBATCH --mail-type=end
+#SBATCH --mail-type=begin,end
 #SBATCH --mail-user=nrredick@ucdavis.edu
+
+SRC_DIR=/quobyte/billengrp/nredick/mysoftware/ECOMAN2.0-geodynamics
 
 BASEDIR=/quobyte/billengrp/nredick/csz-models
 MODEL=28.35
-SJI=$1
+AEID="$1" # id of the preproccessing (aspect2ecoman job)
+echo "[$(basename $0)] AEID = $AEID" && echo
 
-# if sji not set, fail 
-if [[ -z "$SJI" ]]; then
-    echo "Error: SJI (preprocessing job ID) not set. Please provide it as the first argument."
+# if AEID not set, fail 
+if [[ -z "$AEID" ]]; then
+    echo "[$(basename $0)] Error: AEID (aspect2ecoman job ID) not set. Please provide it as the first argument."
     exit 1
 fi
 
-PP_DIR=/quobyte/billengrp/nredick/ecoman/preprocessing/out_$SJI # where to copy dat and vtp from (preprocessing)
+PP_DIR=/quobyte/billengrp/nredick/ecoman/aspect2ecoman/out_$AEID # where to copy dat and vtp from (aspect2ecoman)
 MODEL_DIR="$BASEDIR/$MODEL" # model directory
-OUT_DIR="$MODEL_DIR/ecoman/drexm/out_$SLURM_JOB_ID" # model inputs (drexm_input.dat) & slurm outputs
+OUTPUT_DIR="$MODEL_DIR/ecoman/drexm/out_$SLURM_JOB_ID" # model inputs (drexm_input.dat) & slurm outputs
 
-echo "Running D-REX_M on model \"$MODEL\"" && echo
-echo "Model directory: $MODEL_DIR/"
-echo "Preprocessed data directory: $PP_DIR"
-echo "Output directory: $OUT_DIR" && echo
+# set up WORK_DIR
+WORK_DIR="/nfs/hive/scratch-mpi-io/$SLURM_JOB_ID"
+mkdir -p "$WORK_DIR" && cd "$WORK_DIR" || exit 1
 
-# if [[ -d $OUT_DIR ]]; then
-#     echo "Emptying $OUT_DIR contents..." && echo
-#     rm -rf $OUT_DIR*
-# 
+# cp instead of symlink to avoid stale file handling errors across diff filesystems
+# cp -r "$SRC_DIR/." "$WORK_DIR/src/"
 
-# copy vtp0001.h5 and drexm_input.dat from preprocessing output to working directory
-echo "Copying vtp0001.h5 and drexm_input.dat from preprocessing output to $OUT_DIR ..."
-cp $PP_DIR/vtp0001.h5 $OUT_DIR/
-cp $PP_DIR/drexm_input.dat $OUT_DIR/
+# rsync to make it easier to exclude unnecessary subdirs
+rsync -avr --exclude '.git' --exclude 'cookbooks' --exclude 'D-REX_S' --exclude 'EXEV' --exclude 'VIZTOMO' --exclude 'VIZVISC' --exclude 'compile_ECOMAN2.0-geodynamics' "$SRC_DIR/" "$WORK_DIR/src/"
+
+echo "[$(basename $0)] Running D-REX_M on model \"$MODEL\"" && echo
+echo "[$(basename $0)] Model directory: $MODEL_DIR/"
+echo "[$(basename $0)] Preprocessed data directory: $PP_DIR"
+echo "[$(basename $0)] Working directory: $WORK_DIR"
+echo "[$(basename $0)] Output directory: $OUTPUT_DIR" && echo
+
+# copy vtp0001.h5 and drexm_input.dat from aspect2ecoman output to working directory
+echo "[$(basename $0)] Copying vtp0001.h5 and drexm_input.dat from aspect2ecoman output to $WORK_DIR ..."
+cp $PP_DIR/vtp0001.h5 $WORK_DIR/
+cp $PP_DIR/drexm_input.dat $WORK_DIR/
 
 # make outdir if it dne
-if ! [[ -d $OUT_DIR ]]; then
-    echo "Creating output directory: $OUT_DIR"
-    mkdir -p $OUT_DIR
+if ! [[ -d $OUTPUT_DIR ]]; then
+    echo "[$(basename $0)] Creating output directory: $OUTPUT_DIR"
+    mkdir -p $OUTPUT_DIR
 fi
 
 # check if the input file exists
-if ! [[ -f $OUT_DIR/drexm_input.dat ]]; then
-    echo "D-REX_M input file \"drexm_input.dat\" does not exist or is improperly named."
+if ! [[ -f $WORK_DIR/drexm_input.dat ]]; then
+    echo "[$(basename $0)] D-REX_M input file \"drexm_input.dat\" does not exist or is improperly named."
     exit 1
 fi
 
 # load necessary modules
-echo "Loading modules..."
-# module load hdf5/1.14.5%oneapi@2025.0.0
-# module load openmpi/5.0.5%oneapi@2025.0.0 # it will auto unload the other mpi version
-# module load cmake/3.28.1 gcc/13.2.0 pmix ucx     # added 2026.02.09 for compatibility with changes to openmpi
-
-# module unload openmpi
-module load oneapi/2025.0.0 hdf5/1.14.5%oneapi@2025.0.0
-
-
-# module load openmpi/5.0.5%oneapi@2025.0.0
-# module load pmix/5.0.3%oneapi@2025.0.0 ucx/1.17.0%oneapi@2025.0.0 intel-oneapi-mkl/2024.0.0%oneapi@2025.0.0 
+echo "[$(basename $0)] Loading modules..."
+module load oneapi/2025.0.0 hdf5/1.14.5%oneapi@2025.0.0 pmix/5.0.3%oneapi@2025.0.0
 
 # update the input/output paths in the dat file
-echo "Updating dat file with correct paths..."
-sed -i "/^# input_dir: path to input directory/{ n; s|.*|${OUT_DIR}/|; }" $OUT_DIR/drexm_input.dat
-sed -i "/^# output_dir: path to output directory/{ n; s|.*|${OUT_DIR}/|; }" $OUT_DIR/drexm_input.dat
+echo "[$(basename $0)] Updating dat file with correct paths..."
+sed -i "/^# input_dir: path to input directory/{ n; s|.*|${WORK_DIR}/|; }" $WORK_DIR/drexm_input.dat
+sed -i "/^# output_dir: path to output directory/{ n; s|.*|${WORK_DIR}/|; }" $WORK_DIR/drexm_input.dat
+
+pushd "$WORK_DIR/src/D-REX_M"
+
+export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
 
 # run drexm
-echo "Running ECOMAN/D-REX_M on $MODEL"
-srun ./drex_m $OUT_DIR/drexm_input.dat
+echo "[$(basename $0)] Running ECOMAN/D-REX_M on $MODEL"
+# echo "[$(basename $0)] --ntasks=$SLURM_NTASKS"
+srun ./drex_m $WORK_DIR/drexm_input.dat
 
-# mv outputs to correct directory
-# mv $BASEDIR/$MODEL/out $OUT_DIR
+popd
 
 # cp this file to out dir for record keeping 
 current_path=$(realpath "$0")
-cp $current_path "$OUT_DIR/" 
+cp $current_path "$WORK_DIR/" 
+
+# copy outputs back to quobyte 
+mv "$WORK_DIR" "$OUTPUT_DIR/scratch-mpi-io/" 2>/dev/null
+
+chmod 744 "$OUTPUT_DIR/scratch-mpi-io/" # not sure if this will work from slurm job
+
+echo "[$(basename $0)] Done. Executed as: sbatch drexm_model_28.35.slurm $AEID"
+>&2 echo "$(pwd)"
