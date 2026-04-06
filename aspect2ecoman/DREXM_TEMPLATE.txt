@@ -1,7 +1,7 @@
 # MPI proc distribution along axis
-  3  # nproc1
-  3  # nproc2
-  3  # nproc3
+  4  # nproc1
+  2  # nproc2
+  8  # nproc3
 
 # A) INPUT AND OUTPUT DIRECTORIES/FILES
 
