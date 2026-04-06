@@ -51,7 +51,7 @@ parser.add_argument(
     "--resolution",
     type=int,
     default=10,
-    help=f"Target resmapled model resolution in km (default: 10)",
+    help=f"Target resampled model resolution in km (default: 10)",
 )
 
 # ============================================================
@@ -146,13 +146,13 @@ def generate_grid_blocks(bounds, nx, ny, nz, n_long, n_rad, n_colat):
 # Axis 2 (Y-cart or Radial)
     {fmt_d(r_min)} # x2min: (Y,R)min
     {fmt_d(r_max)} # x2max: (Y,R)max
-      {ny} # nx2: number of grid nodes
+      {nz} # nx2: number of grid nodes
       0 # x2periodic: periodic boundary (no = 0, yes = else)
 
 # Axis 3 (Z-cart or Colat)
     {fmt_d(colat_min)} # x3min: (Z,Colat)min
     {fmt_d(colat_max)} # x3max: (Z,Colat)max
-      {nz} # nx3: number of grid nodes
+      {ny} # nx3: number of grid nodes
       0 # x3periodic: periodic boundary (no = 0, yes = else)
 
 # Lagrangian Grid
@@ -219,7 +219,6 @@ def write_viztomo_input(output_path: str, bounds, nx, ny, nz):
     with open(output_path, "w", encoding="utf-8") as f:
         f.write(body)
     logger.info(f"Wrote VIZTOMO input file: {output_path}")
-
 
 # ============================================================
 # LOAD ASPECT *.PVD
@@ -325,7 +324,7 @@ logger.info(
 
 # Crop the domain: trim 3 degrees azimuth and 1 degree colatitude on each side
 # azi_crop = 3.0  # degrees
-colat_crop = 1.0  # degrees
+colat_crop = 5.0  # degrees
 
 # azi_min += azi_crop
 # azi_max -= azi_crop
@@ -334,7 +333,7 @@ colat_crop = 1.0  # degrees
 # this is specific to the model domain of menno's models, and its selection is based on where we expect to see interesting flow
 # no relevant flow near the thick continental lithosphere
 # add 360 because we are working in the range [0, 2π], not [-180°, 180°]
-azi_max = -135 + 360 
+azi_max = -132 + 360 
 azi_min = -112 + 360
 
 # set colatitidue values
@@ -421,7 +420,7 @@ except Exception:
 
 # a minimum of 3-5 aggregates per cell gets rid of the errors in SKS-SPLIT related to no convergence and empty nodes
 
-target_aggregrates = 3  # number of target aggregates defined per grid cell
+target_aggregrates = 2  # number of target aggregates defined per grid cell
 
 # n_long, n_rad, n_colat are target number of Lagrangian aggregates along each axis
 n_long = nx * target_aggregrates
@@ -463,7 +462,6 @@ except Exception:
 # ============================================================
 # REORDER VTK DATA -> ECOMAN/DREX_M
 # ============================================================
-
 
 @njit
 def reorder_to_drex(arr, nx, ny, nz):
