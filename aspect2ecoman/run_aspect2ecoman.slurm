@@ -21,7 +21,7 @@ set -euo pipefail
 
 # Check for positional argument $1, and if it's empty, use the default 28.37
 MODEL=${1:-28.37} # defines the model that will be preprocessed
-OUTDIR=${OUTDIR:-./out_$SLURM_JOB_ID}
+OUT_DIR=${OUT_DIR:-./out_$SLURM_JOB_ID}
 
 # convert MODEL to path PVD_FILE
 PVD_FILE="/home/nredick/nredick-pfs/csz-models/$MODEL/solution.pvd"
@@ -33,14 +33,18 @@ if ! [[ -f "$PVD_FILE" ]]; then
 fi
 
 # create output directory if it doesn't exist
-if ! [[ -d "$OUTDIR" ]]; then
-    mkdir -p "$OUTDIR"
+if ! [[ -d "$OUT_DIR" ]]; then
+    mkdir -p "$OUT_DIR"
 fi 
 
 module load conda
 mamba activate $HOME/.conda/envs/ecoman
 
-python3 aspect2ecoman.py -f "$PVD_FILE" -o "$OUTDIR" --resolution 60
+python3 aspect2ecoman.py -f "$PVD_FILE" -o "$OUT_DIR" --resolution 11
 
 # cp the python file to the output directory for record-keeping
-cp aspect2ecoman.py "$OUTDIR"/aspect2ecoman.py
+cp aspect2ecoman.py "$OUT_DIR"/aspect2ecoman.py
+
+# cp this file to out dir for record keeping 
+current_path=$(realpath "$0")
+cp $current_path "$OUT_DIR/" 
