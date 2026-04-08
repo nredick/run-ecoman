@@ -14,8 +14,8 @@
      1 # Tinit
      1 # Tstp
      1 # Tend
- 1000 # OutputStep
-  3.155760e+13 # timemax: max timespan in sec (or adimensional time) for steady-state conditions 1 Ma
+ 1000 # OutputStep # if OutputStep > num cycles => will only output cijkl once at the end
+  {TIMEMAX} # timemax: max timespan in sec (or adimensional time) for steady-state conditions
 
 # B) DEFINE THE COMPUTATIONAL DOMAIN
 

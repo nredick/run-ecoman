@@ -1,13 +1,13 @@
 #!/bin/bash
-#SBATCH --job-name=aspect2ecoman
-#SBATCH --output=./out_%j/aspect2ecoman_%j.out
-#SBATCH --error=./out_%j/aspect2ecoman_%j.err
-#SBATCH --time=06:00:00                     # 6 hr max
+#SBATCH --job-name=aspect2ecoman_29.53
+#SBATCH --output=/home/nredick/nredick-pfs/csz-models/29.53/ecoman/aspect2ecoman/out_%j/aspect2ecoman_%j.out
+#SBATCH --error=/home/nredick/nredick-pfs/csz-models/29.53/ecoman/aspect2ecoman/out_%j/aspect2ecoman_%j.err
+#SBATCH --time=01:00:00                     # 1 hr max
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=32
 #SBATCH --partition=high
-#SBATCH --mem=512G                          # to use magali's nodes
+#SBATCH --mem=128G
 #SBATCH --constraint='zen|zen2|zen3'        # do not run or compile on zen4 nodes
 #SBATCH --account=billengrp
 #SBATCH --mail-type=end
@@ -19,9 +19,8 @@ export PYTHONUNBUFFERED=1
 
 set -euo pipefail
 
-# Check for positional argument $1, and if it's empty, use the default 28.37
-MODEL=${1:-28.37} # defines the model that will be preprocessed
-OUT_DIR=${OUT_DIR:-./out_$SLURM_JOB_ID}
+MODEL=29.53 # defines the model that will be preprocessed
+OUT_DIR=/home/nredick/nredick-pfs/csz-models/$MODEL/ecoman/aspect2ecoman/out_$SLURM_JOB_ID
 
 # convert MODEL to path PVD_FILE
 PVD_FILE="/home/nredick/nredick-pfs/csz-models/$MODEL/solution.pvd"
@@ -35,16 +34,17 @@ fi
 # create output directory if it doesn't exist
 if ! [[ -d "$OUT_DIR" ]]; then
     mkdir -p "$OUT_DIR"
-fi 
+fi
 
 module load conda
 mamba activate $HOME/.conda/envs/ecoman
 
-python3 aspect2ecoman.py -f "$PVD_FILE" -o "$OUT_DIR" --resolution 11
+# 11 km resolution, 3 Ma of advection
+python3 aspect2ecoman2.py -f "$PVD_FILE" -o "$OUT_DIR" --resolution 11 --timemax 3e6
 
 # cp the python file to the output directory for record-keeping
-cp aspect2ecoman.py "$OUT_DIR"/aspect2ecoman.py
+cp aspect2ecoman2.py "$OUT_DIR"/aspect2ecoman2.py
 
-# cp this file to out dir for record keeping 
+# cp this file to out dir for record keeping
 current_path=$(realpath "$0")
-cp $current_path "$OUT_DIR/" 
+cp $current_path "$OUT_DIR/"

@@ -1,8 +1,8 @@
 #!/bin/bash
-#SBATCH --job-name=drexm_28.35_11km_3Ma
+#SBATCH --job-name=drexm_29.40_11km_3Ma
 
-#SBATCH --output=/quobyte/billengrp/nredick/csz-models/28.35/ecoman/drexm/out_%j/%x_%j.out
-#SBATCH --error=/quobyte/billengrp/nredick/csz-models/28.35/ecoman/drexm/out_%j/%x_%j.err
+#SBATCH --output=/quobyte/billengrp/nredick/csz-models/29.40/ecoman/drexm/out_%j/%x_%j.out
+#SBATCH --error=/quobyte/billengrp/nredick/csz-models/29.40/ecoman/drexm/out_%j/%x_%j.err
 # SBATCH --chdir=/quobyte/billengrp/nredick/mysoftware/ECOMAN2.0-geodynamics/D-REX_M
 
 #SBATCH --time=36:00:00
@@ -21,7 +21,7 @@
 SRC_DIR=/quobyte/billengrp/nredick/mysoftware/ECOMAN2.0-geodynamics
 
 BASEDIR=/quobyte/billengrp/nredick/csz-models
-MODEL=28.35
+MODEL=29.40
 AEID="$1" # id of the preproccessing (aspect2ecoman job)
 # echo "[$(basename $0)] AEID = $AEID" && echo
 

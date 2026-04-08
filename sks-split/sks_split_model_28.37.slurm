@@ -112,7 +112,10 @@ echo "[$(basename $0)] stack_calc finished with exit code $?"
 
 # run split_calc
 echo "[$(basename $0)] Running split_calc..."
+# mpirun plays nicer with PMIX_RANK, which split_calc uses to determine the cpu* processes
 mpirun -np $SLURM_NTASKS split_calc "$LOCAL_CIJKL" $timestep $mode $split_dir $avg $verbose $save_bascan $idisp $varpar $density $incidence $bottom $lith_bot $execute
+# ! must use mpirun, srun results in path errors, mismanaged processes
+# srun --ntasks=$SLURM_NTASKS split_calc "$LOCAL_CIJKL" $timestep $mode $split_dir $avg $verbose $save_bascan $idisp $varpar $density $incidence $bottom $lith_bot $execute
 echo "[$(basename $0)] split_calc finished with exit code $?"
 
 popd
