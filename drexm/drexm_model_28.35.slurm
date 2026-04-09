@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=drexm_28.35_11km_3Ma
+#SBATCH --job-name=drexm_28.35_10km_3Ma
 
 #SBATCH --output=/quobyte/billengrp/nredick/csz-models/28.35/ecoman/drexm/out_%j/%x_%j.out
 #SBATCH --error=/quobyte/billengrp/nredick/csz-models/28.35/ecoman/drexm/out_%j/%x_%j.err
@@ -38,9 +38,6 @@ OUTPUT_DIR="$MODEL_DIR/ecoman/drexm/out_$SLURM_JOB_ID" # model inputs (drexm_inp
 # set up WORK_DIR
 WORK_DIR="/nfs/hive/scratch-mpi-io/$SLURM_JOB_ID"
 mkdir -p "$WORK_DIR" && cd "$WORK_DIR" || exit 1
-
-# cp instead of symlink to avoid stale file handling errors across diff filesystems
-# cp -r "$SRC_DIR/." "$WORK_DIR/src/"
 
 # rsync to make it easier to exclude unnecessary subdirs
 rsync -avr --exclude '.git' --exclude 'cookbooks' --exclude 'D-REX_S' --exclude 'EXEV' --exclude 'VIZTOMO' --exclude 'VIZVISC' --exclude 'compile_ECOMAN2.0-geodynamics' "$SRC_DIR/" "$WORK_DIR/src/"
@@ -92,6 +89,6 @@ current_path=$(realpath "$0")
 cp $current_path "$WORK_DIR/" 
 
 # copy outputs back to quobyte 
-rsync -avr --exclude 'src' "$WORK_DIR/" "$SRC_DIR/" 
+rsync -avr --exclude 'src' "$WORK_DIR/" "$OUTPUT_DIR/" 
 
 echo "[$(basename $0)] Done. Executed as: sbatch drexm_model_28.35.slurm $AEID"
