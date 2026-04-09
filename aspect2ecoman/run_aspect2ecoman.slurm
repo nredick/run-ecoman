@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=aspect2ecoman_29.53
+#SBATCH --job-name=aspect2ecoman_29.53_10km_3Ma
 #SBATCH --output=/home/nredick/nredick-pfs/csz-models/29.53/ecoman/aspect2ecoman/out_%j/aspect2ecoman_%j.out
 #SBATCH --error=/home/nredick/nredick-pfs/csz-models/29.53/ecoman/aspect2ecoman/out_%j/aspect2ecoman_%j.err
 #SBATCH --time=01:00:00                     # 1 hr max
@@ -40,10 +40,10 @@ module load conda
 mamba activate $HOME/.conda/envs/ecoman
 
 # 11 km resolution, 3 Ma of advection
-python3 aspect2ecoman2.py -f "$PVD_FILE" -o "$OUT_DIR" --resolution 11 --timemax 3e6
+python3 aspect2ecoman.py -f "$PVD_FILE" -o "$OUT_DIR" --resolution 10 --timemax 3e6
 
 # cp the python file to the output directory for record-keeping
-cp aspect2ecoman2.py "$OUT_DIR"/aspect2ecoman2.py
+cp aspect2ecoman.py "$OUT_DIR"/aspect2ecoman.py
 
 # cp this file to out dir for record keeping
 current_path=$(realpath "$0")
