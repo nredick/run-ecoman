@@ -1,6 +1,6 @@
 # MPI proc distribution along axis
   4  # nproc1
-  2  # nproc2
+  3  # nproc2
   4  # nproc3
 
 # A) INPUT AND OUTPUT DIRECTORIES/FILES
@@ -44,7 +44,7 @@
      1d0 # tau(1,1) [100](010) Olivine
      2d0 # tau(1,2) [100](001) Olivine
      3d0 # tau(1,3) [001](010) Olivine
-    7d60 # tau(1,4) [001](100) Olivine
+     7d0 # tau(1,4) [001](100) Olivine
      1d0 # tau(1,5) [001](100) Enstatite
         1 # single_crystal_elastic_db(1,1) : Olivine single crystal elastic tensor as in elastic_database.f90
         2 # single_crystal_elastic_db(1,2) : Enstatite single crystal elastic tensor as in elastic_database.f90
@@ -139,10 +139,10 @@
 
         0 # fsemod ( 0 = compute FSE + LPO ; 1 = compute only FSE)
         1 # uppermantlemod ( 0 = LPO for the whole mantle ; 1 = LPO only for the upper mantle)
-        1 # fractdislmod ( 0 = 100% disl. creep; 1 = combined diff./disl. creep)
+        0 # fractdislmod ( 0 = 100% disl. creep; 1 = combined diff./disl. creep)
         2 # fabrictransformmod ( 0 = no phase transformation; 1 = retain LPO after phase transformation ; 2 = reset LPO --> isotropic)
-        2 # ptmod (0 = room P-T ; 1 = scale elastic properties f(P,T) but phase transitions at minx2/maxx2 depths; 2 = scale elastic properties f(P,T) and phase transitions at density crossovers))
+        1 # ptmod (0 = room P-T ; 1 = scale elastic properties f(P,T) but phase transitions at minx2/maxx2 depths; 2 = scale elastic properties f(P,T) and phase transitions at density crossovers))
         3 # eosmod (1 = Dunite; 2 = Hartzburgite; 3 = Pyrolite; 4 = Basalt ; 5 = Pyroxenite)
-        100.0d0 # fractvoigt (fraction of Voigt average, from 0 % to 100 %. The rest is Reuss average)
+        50.0d0 # fractvoigt (fraction of Voigt average, from 0 % to 100 %. The rest is Reuss average)
 
 ##############################################################################
