@@ -65,8 +65,8 @@ parser.add_argument(
     help="Disable cropping at 660 km depth (default: crop at 660 km)",
 )
 parser.add_argument(
-    "--resolution", type=int, default=11,
-    help="Target resampled model resolution in km (default: 11)",
+    "--resolution", type=int, default=50,
+    help="Target resampled model resolution in km (default: 50)",
 )
 parser.add_argument(
     "--timemax", type=float, default=3e6,
@@ -131,12 +131,19 @@ logger.info("Loaded DREXM / VIZTOMO / STACK templates from %s", script_dir)
 # ============================================================
 
 # Single seconds-per-year constant (Gregorian calendar: 365.2425 days)
-SECONDS_PER_YEAR = 365.2425 * 24 * 60 * 60
+SECONDS_PER_YEAR = 365.25 * 24 * 60 * 60
 
+log_kv(
+    [("SECONDS_PER_YEAR", SECONDS_PER_YEAR),]
+)
 
-def year2sec(years: float) -> int:
-    """Convert years to seconds (Gregorian calendar)."""
-    return round(years * SECONDS_PER_YEAR)
+def year2sec(years: float) -> float:
+    """Convert years to seconds."""
+    return years * SECONDS_PER_YEAR
+
+def sec2year(seconds: float) -> float:
+    """Convert seconds to years."""
+    return seconds / SECONDS_PER_YEAR
 
 
 def fmt_d(val: float) -> str:
@@ -144,27 +151,27 @@ def fmt_d(val: float) -> str:
     return f"{val:.6e}".replace("e", "d")
 
 
-def generate_grid_blocks(bounds, nx, ny, nz, n_azi, n_rad, n_colat):
+def generate_grid_blocks(bounds, nx, ny, nz, n_lon, n_rad, n_colat):
     """Return text block for Eulerian and Lagrangian grids."""
-    azi_min, azi_max, colat_min, colat_max, r_min, r_max = bounds
+    lon_min, lon_max, colat_min, colat_max, r_min, r_max = bounds
 
     Rmean   = 0.5 * (r_min + r_max)
-    dlam    = (azi_max - azi_min) * math.pi / 180.0
+    dlam    = (lon_max - lon_min) * math.pi / 180.0
     dth     = (colat_max - colat_min) * math.pi / 180.0
     th_mean = 0.5 * (colat_min + colat_max) * math.pi / 180.0
 
-    azi_len   = max(0.0, dlam) * Rmean * max(1e-9, math.sin(th_mean))
+    lon_len   = max(0.0, dlam) * Rmean * max(1e-9, math.sin(th_mean))
     colat_len = max(0.0, dth) * Rmean
     rad_len   = max(0.0, r_max - r_min)
 
     eps    = 100.0
-    mx1stp = max(azi_len   / max(1, n_azi)   if azi_len   > 0 else 1.0, eps)
+    mx1stp = max(lon_len   / max(1, n_lon)   if lon_len   > 0 else 1.0, eps)
     mx2stp = max(rad_len   / max(1, n_rad)   if rad_len   > 0 else 1.0, eps)
     mx3stp = max(colat_len / max(1, n_colat) if colat_len > 0 else 1.0, eps)
 
     return f"""# Axis 1 (X-cart or Long)
-    {fmt_d(azi_min)} # x1min: (X,Phi)min
-    {fmt_d(azi_max)} # x1max: (X,Phi)max
+    {fmt_d(lon_min)} # x1min: (X,Phi)min
+    {fmt_d(lon_max)} # x1max: (X,Phi)max
       {nx} # nx1: number of grid nodes
       0 # x1periodic: periodic boundary (no = 0, yes = else)
 
@@ -183,8 +190,8 @@ def generate_grid_blocks(bounds, nx, ny, nz, n_azi, n_rad, n_colat):
 # Lagrangian Grid
 
 # Axis 1 (X-cart or Long)
-    {fmt_d(azi_min)} # mx1min: (mX,mPhi)min
-    {fmt_d(azi_max)} # mx1max: (mX,mPhi)max
+    {fmt_d(lon_min)} # mx1min: (mX,mPhi)min
+    {fmt_d(lon_max)} # mx1max: (mX,mPhi)max
     {mx1stp:.0f}d0 # mx1stp: spacing of aggregates (in meters)
 
 # Axis 2 (Y-cart or Radial)
@@ -209,11 +216,11 @@ def write_drexm_with_grid(output_path: str, grid_block: str):
 
 
 def write_stack_input(output_path: str, bounds):
-    azi_min, azi_max, colat_min, colat_max, r_min, r_max = bounds
+    lon_min, lon_max, colat_min, colat_max, r_min, r_max = bounds
     body = (
         STACK_TEMPLATE
-        .replace("{AZI_MIN}",   f"  {fmt_d(azi_min)}")
-        .replace("{AZI_MAX}",   f"  {fmt_d(azi_max)}")
+        .replace("{LON_MIN}",   f"  {fmt_d(lon_min)}")
+        .replace("{LON_MAX}",   f"  {fmt_d(lon_max)}")
         .replace("{R_MIN}",     f"  {fmt_d(r_min)}")
         .replace("{R_MAX}",     f"  {fmt_d(r_max)}")
         .replace("{COLAT_MIN}", f"   {fmt_d(colat_min)}")
@@ -225,11 +232,11 @@ def write_stack_input(output_path: str, bounds):
 
 
 def write_viztomo_input(output_path: str, bounds, nx, ny, nz):
-    azi_min, azi_max, colat_min, colat_max, r_min, r_max = bounds
+    lon_min, lon_max, colat_min, colat_max, r_min, r_max = bounds
     body = (
         VIZTOMO_TEMPLATE
-        .replace("{AZI_MIN}",   f"  {fmt_d(azi_min)}")
-        .replace("{AZI_MAX}",   f"  {fmt_d(azi_max)}")
+        .replace("{LON_MIN}",   f"  {fmt_d(lon_min)}")
+        .replace("{LON_MAX}",   f"  {fmt_d(lon_max)}")
         .replace("{R_MIN}",     f"  {fmt_d(r_min)}")
         .replace("{R_MAX}",     f"  {fmt_d(r_max)}")
         .replace("{COLAT_MIN}", f"  {fmt_d(colat_min)}")
@@ -272,6 +279,26 @@ log_kv([
     ("Y range (m)", f"[{mesh.bounds[2]:.2f}, {mesh.bounds[3]:.2f}]"),
     ("Z range (m)", f"[{mesh.bounds[4]:.0f}, {mesh.bounds[5]:.0f}]"),
 ])
+
+log_section("FIELD STATISTICS (raw, pre-conversion)")
+
+for name in mesh.point_data.keys():
+    arr = mesh.point_data[name]
+    if arr.ndim == 1:
+        log_kv([
+            (f"{name} min",  f"{arr.min():.4e}"),
+            (f"{name} max",  f"{arr.max():.4e}"),
+            (f"{name} mean", f"{arr.mean():.4e}"),
+            (None, None),
+        ])
+    else:
+        for col in range(arr.shape[1]):
+            log_kv([
+                (f"{name}[:,{col}] min",  f"{arr[:, col].min():.4e}"),
+                (f"{name}[:,{col}] max",  f"{arr[:, col].max():.4e}"),
+                (f"{name}[:,{col}] mean", f"{arr[:, col].mean():.4e}"),
+                (None, None),
+            ])
 
 # ============================================================
 # CONVERT MESH FROM CARTESIAN → SPHERICAL COORDS
@@ -322,7 +349,7 @@ sph_mesh        = mesh.copy()
 sph_mesh.points = np.column_stack([lon, colat, r])
 
 log_kv([
-    ("Azimuth (deg)",    f"[{sph_mesh.bounds[0]:.2f}, {sph_mesh.bounds[1]:.2f}]"),
+    ("Longitude (deg)",    f"[{sph_mesh.bounds[0]:.2f}, {sph_mesh.bounds[1]:.2f}]"),
     ("Colatitude (deg)", f"[{sph_mesh.bounds[2]:.2f}, {sph_mesh.bounds[3]:.2f}]"),
     ("Radius (m)",       f"[{sph_mesh.bounds[4]:.0f}, {sph_mesh.bounds[5]:.0f}]"),
 ])
@@ -333,17 +360,20 @@ log_kv([
 
 log_section("DOMAIN CROPPING")
 
-azi_min, azi_max, colat_min, colat_max, r_min, r_max = sph_mesh.bounds
+_, _, _, _, r_min, r_max = sph_mesh.bounds
 
-colat_crop = 5.0  # degrees — trim boundary artefacts
+# colat_crop = 5.0  # degrees — trim boundary artefacts
 
-# Hardcoded azimuthal window (specific to model domain; [0, 360] convention)
-azi_min = -112 + 360
-azi_max = -132 + 360
+# Hardcoded longitudinal window (specific to CSZ model domain; [0, 360] convention)
+lon = [-132 + 360, -112 + 360]
+lon_min = min(lon)
+lon_max = max(lon)
 
-colat_min = int(np.floor(colat_min + colat_crop))
-colat_max = int(np.floor(colat_max - colat_crop))
-
+# Hardcoded colatitudinal window (specific to CSZ model domain; [0, 360] convention)
+colat = [34, 55]
+colat_min = min(colat)
+colat_max = max(colat)
+ 
 if args.crop_660:
     r_min_660 = 6371e3 - 660e3
     if r_min < r_min_660:
@@ -351,15 +381,14 @@ if args.crop_660:
     depth_label = "surface → 660 km  (cropped)"
 else:
     depth_label = f"surface → {(6371e3 - r_min)/1e3:.0f} km  (full depth)"
-
-bounds = (azi_min, azi_max, colat_min, colat_max, r_min, r_max)
-
+ 
+bounds = (lon_min, lon_max, colat_min, colat_max, r_min, r_max)
+ 
 log_kv([
-    ("Azimuth (deg)",    f"[{azi_min:.1f}, {azi_max:.1f}]  (span {abs(azi_max - azi_min):.1f}°)"),
-    ("Colatitude (deg)", f"[{colat_min:.1f}, {colat_max:.1f}]  (span {colat_max - colat_min:.1f}°)"),
-    ("Colat edge trim",  f"{colat_crop}° each side"),
-    ("Radius (m)",       f"[{r_min:.0f}, {r_max:.0f}]"),
-    ("Depth range",      depth_label),
+    ("Longitude (deg)",    f"[{lon_min:.1f}, {lon_max:.1f}]  (span {abs(lon_max - lon_min):.1f}°)"),
+    ("Colatitude (deg)",   f"[{colat_min:.1f}, {colat_max:.1f}]  (span {colat_max - colat_min:.1f}°)"),
+    ("Radius (m)",         f"[{r_min:.0f}, {r_max:.0f}]"),
+    ("Depth range",        depth_label),
 ])
 
 # ============================================================
@@ -371,13 +400,13 @@ log_section("GRID NODE CALCULATION")
 
 def calculate_nodes_from_spacing(bounds, target_spacing_km=resolution):
     """Calculate number of Eulerian grid nodes to achieve target physical spacing."""
-    azi_min, azi_max, colat_min, colat_max, r_min, r_max = bounds
+    lon_min, lon_max, colat_min, colat_max, r_min, r_max = bounds
 
     target_spacing_m = target_spacing_km * 1000   # km → m
     Rmean            = 0.5 * (r_min + r_max)      # mean radius [m]
 
     d_colat_rad = abs(colat_max - colat_min) * math.pi / 180.0
-    d_azi_rad   = abs(azi_max   - azi_min)   * math.pi / 180.0
+    d_lon_rad   = abs(lon_max   - lon_min)   * math.pi / 180.0
 
     # Radial: linear distance
     rad_length       = abs(r_max - r_min)
@@ -387,15 +416,15 @@ def calculate_nodes_from_spacing(bounds, target_spacing_km=resolution):
     colat_arc_length = Rmean * d_colat_rad
     ny               = int(colat_arc_length / target_spacing_m) + 1
 
-    # Azimuth: arc length = Rmean * sin(θ_mean) * dφ
+    # Longitude: arc length = Rmean * sin(θ_mean) * dφ
     mean_theta_rad   = 0.5 * (colat_min + colat_max) * math.pi / 180.0
-    azi_arc_length   = Rmean * math.sin(mean_theta_rad) * d_azi_rad
-    nx               = int(azi_arc_length / target_spacing_m) + 1
+    lon_arc_length   = Rmean * math.sin(mean_theta_rad) * d_lon_rad
+    nx               = int(lon_arc_length / target_spacing_m) + 1
 
-    return nx, ny, nz, azi_arc_length, colat_arc_length, rad_length
+    return nx, ny, nz, lon_arc_length, colat_arc_length, rad_length
 
 
-nx_target, ny_target, nz_target, azi_arc_m, colat_arc_m, rad_m = \
+nx_target, ny_target, nz_target, lon_arc_m, colat_arc_m, rad_m = \
     calculate_nodes_from_spacing(bounds, target_spacing_km=resolution)
 
 Rmean_domain = 0.5 * (r_min + r_max)
@@ -404,11 +433,11 @@ log_kv([
     ("Target spacing",   f"{resolution} km"),
     ("Mean radius",      f"{Rmean_domain/1e3:.1f} km"),
     (None, None),
-    ("Azimuth arc",      f"{azi_arc_m/1e3:.1f} km"),
+    ("Longitude arc",      f"{lon_arc_m/1e3:.1f} km"),
     ("Colatitude arc",   f"{colat_arc_m/1e3:.1f} km"),
     ("Radial extent",    f"{rad_m/1e3:.1f} km"),
     (None, None),
-    ("nx (azimuth)",     nx_target),
+    ("nx (longitude)",     nx_target),
     ("ny (colatitude)",  ny_target),
     ("nz (radial)",      nz_target),
     ("Total nodes",      f"{nx_target * ny_target * nz_target:,}"),
@@ -422,15 +451,15 @@ log_section("RESAMPLING")
 
 grid            = pv.ImageData()
 grid.dimensions = (nx_target, ny_target, nz_target)
-grid.origin     = (azi_min, colat_min, r_min)
+grid.origin     = (lon_min, colat_min, r_min)
 grid.spacing    = (
-    abs(azi_max   - azi_min)   / (nx_target - 1),
+    abs(lon_max   - lon_min)   / (nx_target - 1),
     abs(colat_max - colat_min) / (ny_target - 1),
     abs(r_max     - r_min)     / (nz_target - 1),
 )
 
 log_kv([
-    ("dazi",   f"{grid.spacing[0]:.4f} °/node"),
+    ("dlon",   f"{grid.spacing[0]:.4f} °/node"),
     ("dcolat", f"{grid.spacing[1]:.4f} °/node"),
     ("dr",     f"{grid.spacing[2]/1e3:.2f} km/node"),
 ])
@@ -461,16 +490,17 @@ log_kv([
 
 log_section("LAGRANGIAN AGGREGATES")
 
-target_aggregates  = 2  # aggregates per Eulerian cell per axis
+# ! if target_aggregates < 3, VIZTOMO and SKS-SPLIT may not be able to find enough aggregates
+target_aggregates  = 3  # aggregates per Eulerian cell per axis
 
-n_azi              = nx_target * target_aggregates
-n_rad              = nz_target * target_aggregates
-n_colat            = ny_target * target_aggregates
-n_total_aggregates = n_azi * n_colat * n_rad
+n_lon              = nx_actual * target_aggregates
+n_rad              = nz_actual * target_aggregates
+n_colat            = ny_actual * target_aggregates
+n_total_aggregates = n_lon * n_colat * n_rad
 
 log_kv([
     ("Per cell (per axis)", target_aggregates),
-    ("n_azi",               n_azi),
+    ("n_lon",               n_lon),
     ("n_colat",             n_colat),
     ("n_rad",               n_rad),
     ("Total aggregates",    f"{n_total_aggregates:,}"),
@@ -486,7 +516,7 @@ try:
     grid_block = generate_grid_blocks(
         resampled.bounds,
         nx=nx_actual, ny=ny_actual, nz=nz_actual,
-        n_azi=n_azi, n_rad=n_rad, n_colat=n_colat,
+        n_lon=n_lon, n_rad=n_rad, n_colat=n_colat,
     )
     write_drexm_with_grid(os.path.join(outdir, "drexm_input.dat"), grid_block)
     write_stack_input(os.path.join(outdir, "stack_input.dat"), resampled.bounds)
@@ -502,16 +532,16 @@ except Exception:
 # REORDER VTK DATA → ECOMAN/DREX_M LAYOUT
 # ============================================================
 
-log_section("REORDERING FIELD DATA  (VTK → DREX_M)")
+log_section("REORDERING FIELD DATA  (VTK → D-REX_M)")
 
 
 @njit
 def reorder_to_drex(arr, nx, ny, nz):
-    """Remap flat VTK index (x fastest) to DREX_M index (z/depth fastest)."""
+    """Remap flat VTK index (x fastest) to D-REX_M index (z/depth fastest)."""
     out = np.empty_like(arr)
-    for k in range(nz):          # radial / depth — fastest in DREX_M
+    for k in range(nz):          # radial / depth (fastest in D-REX_M)
         for j in range(ny):      # colatitude
-            for i in range(nx):  # azimuth
+            for i in range(nx):  # longitude
                 vtk_idx  = i + nx * (j + ny * k)
                 drex_idx = k + nz * (i + nx * j)
                 out[drex_idx] = arr[vtk_idx]
@@ -523,15 +553,17 @@ logger.info("Reordering T, P, velocity fields ...")
 T = reorder_to_drex(resampled.point_data["T"], *resampled.dimensions)
 P = reorder_to_drex(resampled.point_data["p"], *resampled.dimensions)
 
-vel = resampled.point_data.get("velocity")
+vel = resampled.point_data.get("velocity") / SECONDS_PER_YEAR
+
 if vel is None:
     logger.error("Field 'velocity' not found in resampled point data")
     raise KeyError("velocity not found in resampled.point_data")
 
-V1 = reorder_to_drex(vel[:, 0], nx_actual, ny_actual, nz_actual) / SECONDS_PER_YEAR
-V2 = reorder_to_drex(vel[:, 1], nx_actual, ny_actual, nz_actual) / SECONDS_PER_YEAR
-V3 = reorder_to_drex(vel[:, 2], nx_actual, ny_actual, nz_actual) / SECONDS_PER_YEAR
-Fd = np.ones(nx_actual * ny_actual * nz_actual, dtype=np.float32)
+# ASPECT outputs velocity in m/yr; using SI units for DREX-M (m/s)
+V1 = reorder_to_drex(vel[:, 0], nx_actual, ny_actual, nz_actual)
+V2 = reorder_to_drex(vel[:, 1], nx_actual, ny_actual, nz_actual)
+V3 = reorder_to_drex(vel[:, 2], nx_actual, ny_actual, nz_actual)
+Fd = np.zeros(nx_actual * ny_actual * nz_actual, dtype=np.float32)
 
 log_kv([
     ("T  (K)",   f"[{T.min():.1f}, {T.max():.1f}]"),
@@ -547,9 +579,11 @@ log_kv([
 
 log_section("WRITING HDF5 OUTPUT")
 
-fname    = os.path.join(outdir, "vtp0001.h5")
+fname = os.path.join(outdir, "vtp0001.h5")
 time_val = 0.0
-dt0      = year2sec(5e5)   # timestep ≈ 500 ka in seconds
+# dt0 = time interval over which the fields are representative
+# for steady state, set arbitrarily large an let CFL condition determine appropriate step (and therefore numcycles)
+dt0 = year2sec(1e6) # 1,000,000 years
 
 try:
     with h5py.File(fname, "w") as f:
@@ -589,7 +623,7 @@ log_kv([
     ("Input mesh points",     f"{mesh.n_points:,}"),
     (None, None),
     # Domain
-    ("Azimuth (°E)",          f"{azi_min:.1f} → {azi_max:.1f}  (span {abs(azi_max - azi_min):.1f}°)"),
+    ("Longitude (°E)",          f"{lon_min:.1f} → {lon_max:.1f}  (span {abs(lon_max - lon_min):.1f}°)"),
     ("Colatitude (°)",        f"{colat_min:.1f} → {colat_max:.1f}  (span {colat_max - colat_min:.1f}°)"),
     ("Depth (km)",            f"{depth_min_km:.0f} → {depth_max_km:.0f}"),
     ("Colat edge trim",       f"{colat_crop}° each side"),
@@ -598,19 +632,19 @@ log_kv([
     # Grid
     ("Target spacing",        f"{resolution} km"),
     ("Mean radius",           f"{Rmean_domain/1e3:.1f} km"),
-    ("Azimuth arc",           f"{azi_arc_m/1e3:.1f} km"),
+    ("Longitude arc",           f"{lon_arc_m/1e3:.1f} km"),
     ("Colatitude arc",        f"{colat_arc_m/1e3:.1f} km"),
     ("Radial extent",         f"{rad_m/1e3:.1f} km"),
     ("nx / ny / nz (target)", f"{nx_target} / {ny_target} / {nz_target}"),
     ("nx / ny / nz (actual)", f"{nx_actual} / {ny_actual} / {nz_actual}"),
     ("Total Eulerian nodes",  f"{nx_actual * ny_actual * nz_actual:,}"),
-    ("dazi",                  f"{grid.spacing[0]:.4f} °/node"),
+    ("dlon",                  f"{grid.spacing[0]:.4f} °/node"),
     ("dcolat",                f"{grid.spacing[1]:.4f} °/node"),
     ("dr",                    f"{grid.spacing[2]/1e3:.2f} km/node"),
     (None, None),
     # Lagrangian
     ("Agg. per cell",         target_aggregates),
-    ("n_azi / n_colat / n_rad", f"{n_azi} / {n_colat} / {n_rad}"),
+    ("n_lon / n_colat / n_rad", f"{n_lon} / {n_colat} / {n_rad}"),
     ("Total aggregates",      f"{n_total_aggregates:,}"),
     (None, None),
     # Advection
