@@ -34,8 +34,8 @@
 1  # Eulerian
 
 # Axis 1 (X-cart or Long)
-{AZI_MIN}  # n1first: (X,Phi)min
-{AZI_MAX}  # n1last : (X,Phi)max
+{LON_MIN}  # n1first: (X,Phi)min
+{LON_MAX}  # n1last : (X,Phi)max
 {NX1}  # nx11: number of nodes
 
 # Axis 2 (Y-cart or Radial)
@@ -59,14 +59,14 @@
        1 # nx1ref: axis 1 node where to take the reference Vp, Vs profile to compute dVp and dVs when dvpvsmod == 2
        2 # nx3ref: axis 3 node where to take the reference Vp, Vs profile to compute dVp and dVs when dvpvsmod == 2
 
-      1  # radialmod = Vsh^2/Vsv^2
+      2  # radialmod = Vsh^2/Vsv^2
 
-      1  # azimod : azimuthal anisotropy
+      2  # azimod : azimuthal anisotropy
     0d0  # aziscalex1
     0d0  # aziscalex2
     0d0  # az1scalex3
 
       0 # reflectmod (when active, reflect the aggregates with respect to the indicated axis; e.g., when  = 1, then reflect with respect to X axis; if eulerianmod is active, then need to double the domain)
       0  # replicateZmod (when active, replicate the 2D tomographic model along the Z (Colat) direction)
-      1  # specfem3Dmod (when active, print elastic tensors to txt file to be used as an input by Specfem3D)
+      0  # specfem3Dmod (when active, print elastic tensors to txt file to be used as an input by Specfem3D)
       1  # psimod (when active, print elastic tensors to txt file to be used as an input by PSI)

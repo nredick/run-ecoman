@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=a2e_28.37_10km_10Ma
+#SBATCH --job-name=a2e_28.37
 #SBATCH --output=/home/nredick/nredick-pfs/csz-models/28.37/ecoman/aspect2ecoman/out_%j/aspect2ecoman_%j.out
 #SBATCH --error=/home/nredick/nredick-pfs/csz-models/28.37/ecoman/aspect2ecoman/out_%j/aspect2ecoman_%j.err
 #SBATCH --time=01:00:00                     # 1 hr max
@@ -39,8 +39,8 @@ fi
 module load conda
 mamba activate $HOME/.conda/envs/ecoman
 
-# 10 km resolution, 10 Ma of advection
-python3 aspect2ecoman.py -f "$PVD_FILE" -o "$OUT_DIR" --resolution 10 --timemax 10e6
+# 5 km EULERIAN resolution, 25 km LAGRANGIAN spacing, 10 Ma of advection
+python3 aspect2ecoman.py -f "$PVD_FILE" -o "$OUT_DIR" --resolution 5 --lagrangian-spacing 25 --timemax 10e6 
 
 # cp the python file to the output directory for record-keeping
 cp aspect2ecoman.py "$OUT_DIR"/aspect2ecoman.py

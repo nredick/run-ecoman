@@ -1,7 +1,7 @@
 #!/bin/bash
-#SBATCH --job-name=a2e_28.35
-#SBATCH --output=/home/nredick/nredick-pfs/csz-models/28.35/ecoman/aspect2ecoman/out_%j/aspect2ecoman_%j.out
-#SBATCH --error=/home/nredick/nredick-pfs/csz-models/28.35/ecoman/aspect2ecoman/out_%j/aspect2ecoman_%j.err
+#SBATCH --job-name=a2e_29.40
+#SBATCH --output=/home/nredick/nredick-pfs/csz-models/29.40/ecoman/aspect2ecoman/out_%j/aspect2ecoman_%j.out
+#SBATCH --error=/home/nredick/nredick-pfs/csz-models/29.40/ecoman/aspect2ecoman/out_%j/aspect2ecoman_%j.err
 #SBATCH --time=01:00:00                     # 1 hr max
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
@@ -19,7 +19,7 @@ export PYTHONUNBUFFERED=1
 
 set -euo pipefail
 
-MODEL=28.35 # defines the model that will be preprocessed
+MODEL=29.40 # defines the model that will be preprocessed
 OUT_DIR=/home/nredick/nredick-pfs/csz-models/$MODEL/ecoman/aspect2ecoman/out_$SLURM_JOB_ID
 
 # convert MODEL to path PVD_FILE

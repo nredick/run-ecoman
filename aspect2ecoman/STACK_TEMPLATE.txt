@@ -1,16 +1,16 @@
- 27    !! nsx1 : number of seismic stations equally spaced along axis 1 direction
- 27    !! nsx3 : number of seismic stations equally spaced along axis 3 direction
+ 20    !! nsx1 : number of seismic stations equally spaced along axis 1 direction
+ 21    !! nsx3 : number of seismic stations equally spaced along axis 3 direction
 
  1    !! depthaxis = define whether depth axis is positive downward (0) or upward (1)
 
-{AZI_MIN} !! i1first : (X,Phi)min (m,deg)
-{AZI_MAX} !! i1last  : (X,Phi)max (m,deg)
+{LON_MIN} !! i1first : (X,Phi)min (m,deg)
+{LON_MAX} !! i1last  : (X,Phi)max (m,deg)
 {R_MIN} !! i2first : (Y,R)min (m)
 {R_MAX} !! i2last  : (Y,R)max (m)
 {COLAT_MIN} !! i3first : (Z,Theta)min (m,deg)
 {COLAT_MAX} !! i3last  : (Z,Theta)max (m,deg)
 
- 100.0d3 !! maxdist : maximum horizontal distance for interpolation of markers to the given vertical profile (m)
+ 50.0d3 !! maxdist : maximum horizontal distance for interpolation of markers to the given vertical profile (m)
 
  25.0d3 !! minlayer: minimum layer thickness (m)
 

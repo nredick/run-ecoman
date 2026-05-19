@@ -1,7 +1,7 @@
 # MPI proc distribution along axis
-  4  # nproc1
-  3  # nproc2
-  4  # nproc3
+  {NPROC1}  # nproc1
+  {NPROC2}  # nproc2
+  {NPROC3}  # nproc3
 
 # A) INPUT AND OUTPUT DIRECTORIES/FILES
 
@@ -37,7 +37,7 @@
  5961d3 # minx2(1) : Min vertical distribution
  6371d3 # maxx2(1) : Max vertical distribution
   3.5d0 # stressexp(1)
-    125d0 # Mob(1)
+    10d0 # Mob(1)
   0.3d0 # chi(1)
      5d0 # lambda(1)
  1.00d0 # fractdislrock(1) : fraction of def. accommodated by anis. phases
@@ -55,7 +55,7 @@
  5851d3 # minx2(2) : Min vertical distribution
  5961d3 # maxx2(2) : Max vertical distribution
   3.5d0 # stressexp(2)
-    125d0 # Mob(2)
+    10d0 # Mob(2)
   0.3d0 # chi(2)
      5d0 # lambda(2)
  1.00d0 # fractdislrock(2) : fraction of def. accommodated by anis. phases
@@ -85,7 +85,7 @@
  3500d3 # minx2(4) : Min vertical distribution
  5711d3 # maxx2(4) : Max vertical distribution
   3.0d0 # stressexp(4)
-    125d0 # Mob(4)
+    10d0 # Mob(4)
   0.3d0 # chi(4)
      5d0 # lambda(4)
  1.00d0 # fractdislrock(4) : fraction of def. accommodated by anis. phases
@@ -108,7 +108,7 @@
 
     8d1 # Xol(5) : fraction of PPv (%)
  3.0d0 # stressexp(5)
-  125d0 # Mob(5)
+  10d0 # Mob(5)
  0.3d0 # chi(5)
     5d0 # lambda(5)
 1.00d0 # fractdislrock(5) : fraction of def. accommodated by anis. phases
