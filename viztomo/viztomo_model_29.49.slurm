@@ -1,7 +1,7 @@
 #!/bin/bash
-#SBATCH --job-name=viztomo_28.37
-#SBATCH --output=/quobyte/billengrp/nredick/csz-models/28.37/ecoman/viztomo/out_%j/%x_%j.out
-#SBATCH --error=/quobyte/billengrp/nredick/csz-models/28.37/ecoman/viztomo/out_%j/%x_%j.err
+#SBATCH --job-name=viztomo_29.49
+#SBATCH --output=/quobyte/billengrp/nredick/csz-models/29.49/ecoman/viztomo/out_%j/%x_%j.out
+#SBATCH --error=/quobyte/billengrp/nredick/csz-models/29.49/ecoman/viztomo/out_%j/%x_%j.err
 
 #SBATCH --time=12:00:00
 #SBATCH --nodes=1
@@ -19,7 +19,7 @@
 SRC_DIR=/quobyte/billengrp/nredick/mysoftware/ECOMAN2.0-geodynamics
 
 BASEDIR=/quobyte/billengrp/nredick/csz-models
-MODEL=28.37
+MODEL=29.49
 AEID=$1
 DJI=$2
 
@@ -90,10 +90,10 @@ popd
 
 # mv "$WORK_DIR" "$OUT_DIR/"
 
-rsync -avr --exclude 'src' "$WORK_DIR/" "$OUT_DIR/"
+rsync -avr --exclude 'src' "$WORK_DIR/" "$OUT_DIR/" 
 
-echo "[$(basename $0)] Done. Executed as: sbatch viztomo_28.37.slurm $AEID $DJI"
+echo "[$(basename $0)] Done. Executed as: sbatch viztomo_29.49.slurm $AEID $DJI"
 
-# cp this file to out dir for record keeping
+# cp this file to out dir for record keeping 
 current_path=$(realpath "$0")
-cp $current_path "$OUT_DIR/"
+cp $current_path "$OUT_DIR/" 

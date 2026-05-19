@@ -1,15 +1,15 @@
 #!/bin/bash
-#SBATCH --job-name=viztomo_model_28.35_11km
+#SBATCH --job-name=viztomo_28.35
 #SBATCH --output=/quobyte/billengrp/nredick/csz-models/28.35/ecoman/viztomo/out_%j/%x_%j.out
 #SBATCH --error=/quobyte/billengrp/nredick/csz-models/28.35/ecoman/viztomo/out_%j/%x_%j.err
 
-#SBATCH --time=36:00:00
+#SBATCH --time=12:00:00
 #SBATCH --nodes=1
 #SBATCH --ntasks=1 # needs to be 1 for viztomo
-#SBATCH --mem=1048G                          # to use magali's nodes
+#SBATCH --mem=512G                          # to use magali's nodes
 #SBATCH --constraint='zen|zen2|zen3'        # do not run or compile on zen4 nodes
 #SBATCH --partition=high
-#SBATCH --hint=nomultithread
+# SBATCH --hint=nomultithread
 
 #SBATCH --account=billengrp
 #SBATCH --mail-type=end
@@ -88,11 +88,11 @@ srun ./viztomo $WORK_DIR/viztomo_input.dat
 
 popd
 
-# mv "$WORK_DIR" "$OUTPUT_DIR/"
+# mv "$WORK_DIR" "$OUT_DIR/"
 
-rsync -avr --exclude 'src' "$WORK_DIR/" "$SRC_DIR/" 
+rsync -avr --exclude 'src' "$WORK_DIR/" "$OUT_DIR/" 
 
-echo "[$(basename $0)] Done. Executed as: sbatch viztomo_model_28.35.slurm $AEID $DJI"
+echo "[$(basename $0)] Done. Executed as: sbatch viztomo_28.35.slurm $AEID $DJI"
 
 # cp this file to out dir for record keeping 
 current_path=$(realpath "$0")
