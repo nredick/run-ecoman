@@ -40,7 +40,7 @@ module load conda
 mamba activate $HOME/.conda/envs/ecoman
 
 # 5 km EULERIAN resolution, 25 km LAGRANGIAN spacing, 10 Ma of advection
-python3 aspect2ecoman.py -f "$PVD_FILE" -o "$OUT_DIR" --resolution 5 --lagrangian-spacing 25 --timemax 10e6 
+python3 aspect2ecoman.py -f "$PVD_FILE" -o "$OUT_DIR" --resolution 5 --lagrangian-spacing 25 --timemax 50e6 
 
 # cp the python file to the output directory for record-keeping
 cp aspect2ecoman.py "$OUT_DIR"/aspect2ecoman.py

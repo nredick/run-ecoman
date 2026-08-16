@@ -4,7 +4,7 @@
 #SBATCH --output=/quobyte/billengrp/nredick/csz-models/28.35/ecoman/drexm/out_%j/%x_%j.out
 #SBATCH --error=/quobyte/billengrp/nredick/csz-models/28.35/ecoman/drexm/out_%j/%x_%j.err
 
-#SBATCH --time=24:00:00
+#SBATCH --time=72:00:00
 #SBATCH --ntasks=16 # must == product of MPI proc distribution along axis from DAT file
 #SBATCH --cpus-per-task=6 
 #SBATCH --mem-per-cpu=6G
