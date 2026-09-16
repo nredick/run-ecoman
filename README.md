@@ -2,7 +2,7 @@
 
 Scripts and parameter files used in preparation for the master's thesis:
 
-**"Understanding seismic anisotropy observations in the context of 3D slab-induced flow in the Cascadia subduction zone"**
+**"Understanding seismic anisotropy observations in the context of 3D slab-induced flow in the Cascadia subduction zone"** (Redick, 2026)
 
 ## Overview
 
