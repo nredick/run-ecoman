@@ -76,7 +76,7 @@ rsync -avr "$PP_DIR/stack_input.dat" "$WORK_DIR/"
 # --- ISOLATED CIJKL WORKSPACE ---
 # Copy Cijkl input files locally to prevent multiple jobs from stepping on each other's files in Quobyte
 mkdir -p "$WORK_DIR/c"
-rsync -avr --exclude="splitting/" --exclude="seismic_stations/" "$cijkl_dir/" "$WORK_DIR/c/"
+rsync -avr --exclude="splitting*/" --exclude="seismic_stations/" "$cijkl_dir/" "$WORK_DIR/c/"
 LOCAL_CIJKL="$WORK_DIR/c"
 
 export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
@@ -109,6 +109,7 @@ echo "[$(basename $0)] using bottom = $BOT"
 bottom=$BOT                      # Set depth of stack of layers in km
 lith_bot=100                    # calc splitting from layers below "bottom" everywhere if mode = 1
 execute=1                       # 0 = dry run (no outputs in splitting/), 1 = exec as normal 
+truncate=1                      # 1 = ignore data below bottom, 0 = operate normally (all layers below lithbot)
 
 ##############################################################################
 
@@ -121,7 +122,7 @@ echo "[$(basename $0)] stack_calc finished with exit code $?"
 
 # Run split_calc
 echo "[$(basename $0)] Running split_calc..."
-mpirun -np $SLURM_NTASKS ./split_calc "$LOCAL_CIJKL" $timestep $mode $split_dir $avg $verbose $save_bascan $idisp $varpar $density $incidence $bottom $lith_bot $execute
+mpirun -np $SLURM_NTASKS ./split_calc "$LOCAL_CIJKL" $timestep $mode $split_dir $avg $verbose $save_bascan $idisp $varpar $density $incidence $bottom $lith_bot $execute $truncate
 echo "[$(basename $0)] split_calc finished with exit code $?"
 
 popd > /dev/null
